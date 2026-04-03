@@ -13,14 +13,14 @@ ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1 CHECK (level >= 1);
 
 -- 3. Créer une fonction pour calculer l'XP nécessaire pour un level donné
 -- Formule: floor(base * ((growth^(level+1) - 1) / (growth - 1)))
--- Utilise les constantes globales: base = 100, growth = 1.5
+-- Utilise les constantes globales: base = 30, growth = 1.1
 CREATE OR REPLACE FUNCTION public.xp_for_level(
   p_level INTEGER
 )
 RETURNS INTEGER AS $$
 DECLARE
-  v_base INTEGER := 100;
-  v_growth DECIMAL := 1.5;
+  v_base INTEGER := 10;
+  v_growth DECIMAL := 1.05;
 BEGIN
   IF p_level <= 0 THEN
     RETURN 0;
@@ -29,10 +29,10 @@ BEGIN
   RETURN FLOOR(v_base * ((POWER(v_growth, p_level + 1) - 1) / (v_growth - 1)))::INTEGER;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
-
+ 
 -- 4. Créer une fonction pour calculer le level à partir de l'XP
 -- Trouve le level maximum tel que xp_for_level(level) <= xp_total
--- Utilise les constantes globales: base = 100, growth = 1.5
+-- Utilise les constantes globales: base = 30, growth = 1.1
 CREATE OR REPLACE FUNCTION public.level_from_xp(
   p_xp INTEGER
 )
