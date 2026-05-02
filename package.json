@@ -7,7 +7,10 @@
     "build": "next build",
     "build:server": "tsup server.ts --out-dir dist --format esm,cjs --minify --clean",
     "start": "NODE_ENV=production node dist/server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
