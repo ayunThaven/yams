@@ -1,17 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * Middleware simplifié pour Next.js
- * 
- * Note : L'authentification est principalement gérée côté client via Providers.tsx
- * car l'application utilise localStorage pour les tokens JWT.
- * 
- * Ce middleware se contente de :
- * - Permettre l'accès aux routes (la vérification réelle est côté client)
- * - Logger les tentatives d'accès pour le débogage
+ * Middleware UX pour les pages.
+ *
+ * La sécurité réelle reste dans les API routes et le serveur Socket.IO, où le JWT
+ * est vérifié côté serveur. Ici on ne fait qu'une redirection rapide basée sur
+ * la présence du cookie HTTP-only, car le middleware Edge ne doit pas importer
+ * jsonwebtoken.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const hasAuthCookie = !!request.cookies.get('yams_auth_token')?.value
   
   // Routes d'authentification
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
@@ -19,8 +18,20 @@ export async function middleware(request: NextRequest) {
   // Routes protégées
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/game/')
 
-  // Laisser passer toutes les requêtes
-  // La vérification d'authentification est gérée côté client dans Providers.tsx
+  if (isProtectedRoute && !hasAuthCookie) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  if (isAuthPage && hasAuthCookie) {
+    const dashboardUrl = request.nextUrl.clone()
+    dashboardUrl.pathname = '/dashboard'
+    dashboardUrl.search = ''
+    return NextResponse.redirect(dashboardUrl)
+  }
+
   return NextResponse.next()
 }
 
