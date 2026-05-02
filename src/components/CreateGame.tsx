@@ -9,6 +9,7 @@ import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from '@/lib/variantLogic'
 import PlusIcon from './icons/PlusIcon'
 import { api } from '@/lib/apiClient'
 import { useFlashMessage } from '@/contexts/FlashMessageContext'
+import { Achievement } from '@/types/achievement'
 
 export default function CreateGame() {
   const router = useRouter()
@@ -31,7 +32,10 @@ export default function CreateGame() {
     const id = generateGameId()
 
     try {
-      const { error } = await api.post<{ game: { id: string } }>('/api/games', {
+      const { data, error } = await api.post<{
+        game: { id: string }
+        achievements?: Achievement[]
+      }>('/api/games', {
         id,
         variant: selectedVariant,
       })
@@ -41,30 +45,7 @@ export default function CreateGame() {
         setLoading(false)
         alert(`Erreur lors de la création de la partie: ${error || 'Erreur inconnue'}`)
       } else {
-        // Débloquer les succès d'action liés à la création de partie
-        try {
-          const res = await fetch('/api/achievements/unlock', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ achievementId: 'create_game' }),
-          })
-
-          if (res.ok) {
-            const json = await res.json().catch(() => null)
-            if (json?.achievement) {
-              showAchievement(json.achievement)
-            }
-          }
-
-          // Si la partie créée est privée, débloquer aussi create_private_game
-          // L'information de confidentialité sera ajoutée plus tard. (friend system)
-          // Pour l'instant, on ne débloque que create_game.
-        } catch (unlockError) {
-          console.warn('[CREATE] Impossible de débloquer le succès create_game:', unlockError)
-        }
+        data?.achievements?.forEach(showAchievement)
 
         setShowModal(false)
         await new Promise(resolve => setTimeout(resolve, 200))

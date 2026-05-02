@@ -18,7 +18,7 @@ ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # ✅ Copie du projet
 COPY . .

@@ -13,8 +13,8 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Vérifier si docker-compose est installé
-if ! command -v docker compose &> /dev/null; then
+# Vérifier si Docker Compose est disponible
+if ! docker compose version &> /dev/null; then
     echo "❌ Erreur: Docker Compose n'est pas installé"
     echo "Installez Docker Compose depuis: https://docs.docker.com/compose/install/"
     exit 1
@@ -38,7 +38,7 @@ docker compose down 2>/dev/null
 # Construire et démarrer
 echo ""
 echo "🔨 Construction de l'image Docker..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 echo ""
 echo "🚀 Démarrage de l'application..."
@@ -57,15 +57,15 @@ if docker compose ps | grep -q "Up"; then
     echo "📍 Accédez à l'application: http://localhost:3000"
     echo ""
     echo "📋 Commandes utiles:"
-    echo "  - Voir les logs:        docker-compose logs -f"
-    echo "  - Arrêter l'app:        docker-compose down"
-    echo "  - Redémarrer:           docker-compose restart"
-    echo "  - Reconstruire:         docker-compose up -d --build"
+    echo "  - Voir les logs:        docker compose logs -f"
+    echo "  - Arrêter l'app:        docker compose down"
+    echo "  - Redémarrer:           docker compose restart"
+    echo "  - Reconstruire:         docker compose up -d --build"
     echo ""
 else
     echo ""
     echo "❌ Erreur lors du démarrage"
-    echo "Vérifiez les logs: docker-compose logs"
+    echo "Vérifiez les logs: docker compose logs"
     exit 1
 fi
 
