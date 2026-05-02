@@ -1,7 +1,7 @@
 'use client';
 
 import { ThemeProvider } from "next-themes"
-import { createContext, useContext, useEffect, useState, useMemo } from "react"
+import { createContext, useCallback, useContext, useEffect, useState, useMemo } from "react"
 import { UserProfile } from "@/types/user"
 import { createClient } from "@/lib/supabase/browser"
 import { SupabaseClient } from "@supabase/supabase-js"
@@ -40,7 +40,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Créer le client Supabase une seule fois
   const supabase = useMemo(() => createClient(), [])
 
-  const readCachedAuthAndProfile = () => {
+  const readCachedAuthAndProfile = useCallback(() => {
     if (typeof window === 'undefined') return null
 
     try {
@@ -63,9 +63,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     } catch {
       return null
     }
-  }
+  }, [])
 
-  const writeCachedAuthAndProfile = (nextUser: AuthUser | null, nextProfile: UserProfile | null) => {
+  const writeCachedAuthAndProfile = useCallback((nextUser: AuthUser | null, nextProfile: UserProfile | null) => {
     if (typeof window === 'undefined') return
 
     try {
@@ -78,9 +78,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     } catch {
       // En cas d'erreur de stockage, on ignore silencieusement.
     }
-  }
+  }, [])
 
-  const fetchAuthAndProfile = async () => {
+  const fetchAuthAndProfile = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' })
       if (!res.ok) {
@@ -99,11 +99,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       setUserProfile(null)
       writeCachedAuthAndProfile(null, null)
     }
-  }
+  }, [writeCachedAuthAndProfile])
 
-  const refreshUserProfile = async () => {
+  const refreshUserProfile = useCallback(async () => {
     await fetchAuthAndProfile()
-  }
+  }, [fetchAuthAndProfile])
 
   useEffect(() => {
     let cancelled = false
@@ -129,7 +129,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [fetchAuthAndProfile, readCachedAuthAndProfile])
 
   return (
     <SupabaseContext.Provider value={{ user, userProfile, isLoading, refreshUserProfile, supabase }}>

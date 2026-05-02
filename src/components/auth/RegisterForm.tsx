@@ -67,7 +67,7 @@ export default function RegisterForm() {
         <div className="space-y-4">
           <div>
             <label className="label">
-              <span className="label-text font-semibold">Nom d'utilisateur</span>
+              <span className="label-text font-semibold">Nom d&apos;utilisateur</span>
             </label>
             <input
               name="username"
@@ -115,7 +115,7 @@ export default function RegisterForm() {
           ) : (
             <>
               <span>✨</span>
-              <span>S'inscrire</span>
+              <span>S&apos;inscrire</span>
             </>
           )}
         </button>
