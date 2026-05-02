@@ -7,10 +7,10 @@ import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './gameManager'
 import { ScoreCategory } from '../types/game'
-import { updateUserStats, countYamsInScoreSheet, getUserProfile } from '../lib/userStats'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
-import { updateFinishedGame } from './gameDbUtils'
+import { finalizeGame, recordPlayerAbandon } from './gameFinalizationService'
+import { isScoreCategory, parseDieIndex, parseRoomId } from '@/lib/validation'
 
 /**
  * Configure les gestionnaires d'événements pour le jeu
@@ -24,7 +24,13 @@ export function setupGameHandlers(
   /**
    * Lancer les dés
    */
-  socket.on('roll_dice', (roomId: string) => {
+  socket.on('roll_dice', (rawRoomId: string) => {
+    const roomId = parseRoomId(rawRoomId)
+    if (!roomId) {
+      socket.emit('error', { message: 'Code de partie invalide.' })
+      return
+    }
+
     const playerId = socket.id
     const gameBeforeRoll = getGame(roomId)
     if (!gameBeforeRoll) return
@@ -50,7 +56,14 @@ export function setupGameHandlers(
    */
   socket.on(
     'toggle_die_lock',
-    ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
+    (payload: { roomId: string; dieIndex: number }) => {
+      const roomId = parseRoomId(payload?.roomId)
+      const dieIndex = parseDieIndex(payload?.dieIndex)
+      if (!roomId || dieIndex === null) {
+        socket.emit('error', { message: 'Action de dé invalide.' })
+        return
+      }
+
       const playerId = socket.id
       const gameBeforeToggle = getGame(roomId)
       if (!gameBeforeToggle) return
@@ -72,7 +85,14 @@ export function setupGameHandlers(
   /**
    * Choisir une catégorie de score
    */
-  socket.on('choose_score', ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
+  socket.on('choose_score', async (payload: { roomId: string; category: ScoreCategory }) => {
+    const roomId = parseRoomId(payload?.roomId)
+    const category = payload?.category
+    if (!roomId || !isScoreCategory(category)) {
+      socket.emit('error', { message: 'Choix de score invalide.' })
+      return
+    }
+
     const playerId = socket.id
     
     // Capturer l'état AVANT pour détecter le changement de tour
@@ -99,18 +119,17 @@ export function setupGameHandlers(
           `${playerAfter.name} a marqué ${scoreObtained} point${scoreObtained > 1 ? 's' : ''} en ${categoryLabel}`)
       }
       
-      io.to(roomId).emit('game_update', gameState)
-
       if (gameState.gameStatus === 'finished') {
-        // Mettre à jour la base de données
-        updateFinishedGame(supabase, roomId, gameState)
-
-        io.to(roomId).emit('game_ended', {
-          winner: gameState.winner,
+        await finalizeGame({
+          io,
+          supabase,
+          roomId,
+          gameState,
           reason: 'completed',
-          message: `${gameState.winner} remporte la partie !`,
         })
       } else {
+        io.to(roomId).emit('game_update', gameState)
+
         // Vérifier si on a changé de tour
         const newTurnNumber = gameState.turnNumber
         if (newTurnNumber > oldTurnNumber) {
@@ -121,7 +140,7 @@ export function setupGameHandlers(
         io.to(roomId).emit('system_message', `C'est au tour de ${currentPlayer.name}`)
         
         // Démarrer le timer pour le nouveau tour
-        startTurnTimerWithCallbacks(io, roomId)
+        startTurnTimerWithCallbacks(io, supabase, roomId)
       }
     }
   })
@@ -129,7 +148,13 @@ export function setupGameHandlers(
   /**
    * Abandonner une partie en cours
    */
-  socket.on('abandon_game', async (roomId: string) => {
+  socket.on('abandon_game', async (rawRoomId: string) => {
+    const roomId = parseRoomId(rawRoomId)
+    if (!roomId) {
+      socket.emit('error', { message: 'Code de partie invalide.' })
+      return
+    }
+
     const playerName = socket.data.playerName || 'Un joueur'
     const userId = socket.data.userId
     const roomState = roomStates.get(roomId)
@@ -155,31 +180,15 @@ export function setupGameHandlers(
       if (abandoningPlayer) {
         const playerIndex = gameBeforeRemoval.players.findIndex((p) => p.id === socket.id)
         wasCurrentPlayer = (playerIndex === gameBeforeRemoval.currentPlayerIndex)
-        
-        // Compter les Yams réalisés
-        const yamsCount = countYamsInScoreSheet(abandoningPlayer.scoreSheet)
 
-        // Récupérer le niveau actuel du joueur pour calculer la perte d'XP
-        const { data: userProfile } = await getUserProfile(supabase, userId)
-        const currentLevel = userProfile?.level || 1
-        
-        // Calculer la perte d'XP: exp -= lvl * 10
-        const xpLoss = currentLevel * 10
-        const xpGained = -xpLoss
-
-        // Enregistrer les statistiques d'abandon
-        const result = await updateUserStats(supabase, {
-          user_id: userId,
-          score: abandoningPlayer.totalScore,
-          won: false,
-          abandoned: true,
-          yams_count: yamsCount,
-          xp_gained: xpGained,
+        await recordPlayerAbandon({
+          io,
+          supabase,
+          roomId,
+          gameState: gameBeforeRemoval,
+          player: abandoningPlayer,
+          reason: 'abandon',
         })
-
-        if (!result.success) {
-          console.error(`[STATS] Erreur sauvegarde stats d'abandon:`, result.error)
-        }
       }
     }
 
@@ -195,14 +204,12 @@ export function setupGameHandlers(
       // Plus de joueurs, partie annulée
       roomStates.delete(roomId)
     } else if (updatedGame.gameStatus === 'finished') {
-      // Mettre à jour la base de données
-      updateFinishedGame(supabase, roomId, updatedGame)
-
-      io.to(roomId).emit('game_update', updatedGame)
-      io.to(roomId).emit('game_ended', {
-        winner: updatedGame.winner,
+      await finalizeGame({
+        io,
+        supabase,
+        roomId,
+        gameState: updatedGame,
         reason: 'abandon',
-        message: `${updatedGame.winner} remporte la partie par abandon !`,
       })
       // Ne pas supprimer roomStates immédiatement pour éviter que les joueurs soient renvoyés à la salle d'attente
       // Le roomState sera nettoyé quand tous les joueurs quitteront la partie
@@ -226,7 +233,7 @@ export function setupGameHandlers(
       // Redémarrer le timer uniquement si c'était le tour du joueur qui abandonne
       // (le timer a été nettoyé dans removePlayer dans ce cas)
       if (wasCurrentPlayer) {
-        startTurnTimerWithCallbacks(io, roomId)
+        startTurnTimerWithCallbacks(io, supabase, roomId)
       }
     }
   })
@@ -245,9 +252,16 @@ export function setupGameHandlers(
       newRoomId: string
       hostName: string
     }) => {
+      const parsedOldRoomId = parseRoomId(oldRoomId)
+      const parsedNewRoomId = parseRoomId(newRoomId)
+      if (!parsedOldRoomId || !parsedNewRoomId || typeof hostName !== 'string') {
+        socket.emit('error', { message: 'Données de revanche invalides.' })
+        return
+      }
+
       // Notifier tous les joueurs de l'ancienne room qu'une nouvelle partie est disponible
-      socket.to(oldRoomId).emit('rematch_available', {
-        newRoomId,
+      socket.to(parsedOldRoomId).emit('rematch_available', {
+        newRoomId: parsedNewRoomId,
         hostName,
       })
     }
@@ -257,7 +271,10 @@ export function setupGameHandlers(
    * Gestion du départ de l'hôte d'une partie terminée
    * Redirige automatiquement tous les autres joueurs vers le dashboard
    */
-  socket.on('host_leaving_finished_game', (roomId: string) => {
+  socket.on('host_leaving_finished_game', (rawRoomId: string) => {
+    const roomId = parseRoomId(rawRoomId)
+    if (!roomId) return
+
     // Notifier tous les autres joueurs de retourner au dashboard
     socket.to(roomId).emit('host_left_finished_game', {
       message: 'L\'hôte a quitté la partie. Redirection vers le dashboard...'
