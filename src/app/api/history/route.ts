@@ -6,7 +6,19 @@ import { SimpleCache } from '@/lib/simpleCache'
 const COOKIE_NAME = 'yams_auth_token'
 
 // Cache process-local pour l'historique récent d'un utilisateur.
-const historyCache = new SimpleCache<any[]>(30_000) // 30 secondes
+type PlayerScore = { user_id?: string }
+
+type HistoryGame = {
+  id: string
+  owner: string | null
+  status: string
+  created_at: string
+  winner: string | null
+  players_scores: unknown
+  variant: string | null
+}
+
+const historyCache = new SimpleCache<HistoryGame[]>(30_000) // 30 secondes
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value
@@ -48,11 +60,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const myGames = (data || [])
-      .filter((game: any) => {
+    const myGames = ((data ?? []) as unknown as HistoryGame[])
+      .filter((game) => {
         if (game.owner === userId) return true
         if (game.players_scores && Array.isArray(game.players_scores)) {
-          return game.players_scores.some((p: any) => p.user_id === userId)
+          return game.players_scores.some((player: unknown) => {
+            const score = player as PlayerScore
+            return score.user_id === userId
+          })
         }
         return false
       })

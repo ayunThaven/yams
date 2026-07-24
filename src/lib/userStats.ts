@@ -3,7 +3,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
-import { UpdateStatsParams, UserProfile } from '@/types/user'
+import { UpdateStatsParams, UserProfile, UserStats } from '@/types/user'
 import { ScoreSheet } from '@/types/game'
 import { LEVELING_BASE, LEVELING_GROWTH } from './levelingConfig'
 
@@ -160,7 +160,7 @@ export async function updateUserProfile(
 export async function getLeaderboard(
   supabase: SupabaseClient,
   limit: number = 10
-): Promise<{ data: any[] | null; error?: string }> {
+): Promise<{ data: UserStats[] | null; error?: string }> {
   try {
     const { data, error } = await supabase
       .from('leaderboard')
@@ -172,7 +172,7 @@ export async function getLeaderboard(
       return { data: null, error: error.message }
     }
 
-    return { data }
+    return { data: (data ?? []) as UserStats[] }
   } catch (error) {
     console.error('❌ Erreur lors de la récupération du classement:', error)
     return {

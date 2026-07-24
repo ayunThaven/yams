@@ -1,7 +1,7 @@
 // Gestionnaire de l'état des parties côté serveur
 
 import { GameState, ScoreCategory, GameVariant, ScoreSheet } from '../types/game'
-import { calculateScore, calculateTotalScore, createEmptyScoreSheet, createDevScoreSheet, isScoreSheetComplete } from '../lib/yamsLogic'
+import { calculateScore, calculateTotalScore, createEmptyScoreSheet, isScoreSheetComplete } from '../lib/yamsLogic'
 import { canChooseCategory } from '../lib/variantLogic'
 import { createDice, rollUnlockedDice } from './diceManager'
 import { getGameState, setGameState, deleteGameState, clearAllGames as clearAllGameStates } from './gameStateManager'
@@ -44,7 +44,6 @@ export function initializeGame(
   variant: GameVariant = 'classic'
 ): GameState {
   // Mode développement : pré-remplir les scores pour des tests rapides
-  const isDevelopment = process.env.NODE_ENV !== 'production'
   
   const gameState: GameState = {
     roomId,
@@ -52,14 +51,14 @@ export function initializeGame(
       id: p.id,
       name: p.name,
       userId: p.userId,
-      scoreSheet: isDevelopment ? createDevScoreSheet() : createEmptyScoreSheet(),
-      totalScore: isDevelopment ? calculateTotalScore(createDevScoreSheet()) : 0,
+      scoreSheet: createEmptyScoreSheet(),
+      totalScore: 0,
       abandoned: false,
     })),
     currentPlayerIndex: 0,
     dice: createDice(),
     rollsLeft: 3,
-    turnNumber: isDevelopment ? 13 : 1, // Dernier tour en mode dev
+    turnNumber: 1,
     gameStatus: 'playing',
     winner: null,
     variant,

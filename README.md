@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Yams Tour par Tour
 
-## Getting Started
+Application multijoueur de Yams construite avec Next.js, Socket.IO et
+Supabase. Le serveur Node personnalisé héberge Next.js et les événements temps
+réel sur le même port.
 
-First, run the development server:
+## Prérequis
+
+- Node.js 20
+- Une instance Supabase PostgreSQL
+- Un fournisseur SendGrid pour les emails transactionnels en production
+
+Copiez `env.template` vers `.env`, puis renseignez au minimum :
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `AUTH_JWT_SECRET`
+
+Les clés `NEXT_PUBLIC_*` peuvent être présentes au build. Les clés serveur et
+les secrets d'email sont fournis uniquement à l'exécution.
+
+## Commandes
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run typecheck
+npm test
+npm run test:integration
+npm run build
+npm run build:server
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Le serveur de développement écoute sur `http://localhost:3000` par défaut.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Base de données
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Les migrations incrémentales vivent dans `supabase/migrations` et doivent être
+appliquées dans leur ordre numérique. Elles ne doivent jamais être réécrites
+après déploiement.
 
-## Learn More
+`supabase/bootstrap/reset-public-schema.sql` est un outil destructif réservé à
+un environnement local vierge. Il supprime le schéma `public` et ne doit ni être
+appliqué à une base existante ni être traité comme une migration.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/app` : pages et routes HTTP Next.js.
+- `src/server` : règles de room, Socket.IO, timers et persistance de jeu.
+- `src/lib` : règles de Yams, authentification et accès Supabase.
+- `server.ts` : point d'entrée du serveur personnalisé.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Les contributions doivent passer par des branches et des pull requests. Les
+contrôles CI exécutent lint, TypeScript, tests et les deux builds.
 
-## Deploy on Vercel
+## Docker
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker compose up --build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Les variables sensibles sont injectées au runtime par Docker Compose ; ne les
+utilisez pas comme arguments de build.

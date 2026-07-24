@@ -38,7 +38,7 @@ docker compose down 2>/dev/null
 # Construire et démarrer
 echo ""
 echo "🔨 Construction de l'image Docker..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 echo ""
 echo "🚀 Démarrage de l'application..."
