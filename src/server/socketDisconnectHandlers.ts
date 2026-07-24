@@ -7,7 +7,8 @@
 import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { removePlayer, getGameState } from './gameManager'
-import { updateUserStats, countYamsInScoreSheet, getUserProfile } from '../lib/userStats'
+import { finalizeGame, recordPlayerAbandon } from './gameFinalizationService'
+import { startTurnTimerWithCallbacks } from './timerUtils'
 
 // Délai de grâce en millisecondes (60 secondes)
 const DISCONNECT_GRACE_PERIOD = 60000
@@ -84,37 +85,25 @@ export function setupDisconnectHandlers(
             const abandonTimer = setTimeout(async () => {
               // Récupérer le gameState AVANT de retirer le joueur pour sauvegarder ses stats
               const gameBeforeRemoval = getGameState(roomId)
-              
+              let wasCurrentPlayer = false
+
               // Enregistrer les stats avec perte d'XP si le joueur existe dans le gameState
               if (gameBeforeRemoval && userId) {
                 // Trouver le joueur qui abandonne par userId (car socket.id n'est plus valide)
                 const abandoningPlayer = gameBeforeRemoval.players.find((p) => p.userId === userId)
                 
                 if (abandoningPlayer) {
-                  // Compter les Yams réalisés
-                  const yamsCount = countYamsInScoreSheet(abandoningPlayer.scoreSheet)
-                  
-                  // Récupérer le niveau actuel du joueur pour calculer la perte d'XP
-                  const { data: userProfile } = await getUserProfile(supabase, userId)
-                  const currentLevel = userProfile?.level || 1
-                  
-                  // Calculer la perte d'XP: exp -= lvl * 10
-                  const xpLoss = currentLevel * 10
-                  const xpGained = -xpLoss
-                  
-                  // Enregistrer les statistiques d'abandon
-                  const result = await updateUserStats(supabase, {
-                    user_id: userId,
-                    score: abandoningPlayer.totalScore,
-                    won: false,
-                    abandoned: true,
-                    yams_count: yamsCount,
-                    xp_gained: xpGained,
+                  const playerIndex = gameBeforeRemoval.players.findIndex((p) => p.userId === userId)
+                  wasCurrentPlayer = playerIndex === gameBeforeRemoval.currentPlayerIndex
+
+                  await recordPlayerAbandon({
+                    io,
+                    supabase,
+                    roomId,
+                    gameState: gameBeforeRemoval,
+                    player: abandoningPlayer,
+                    reason: 'abandon',
                   })
-                  
-                  if (!result.success) {
-                    console.error(`[STATS] Erreur sauvegarde stats d'abandon (déconnexion):`, result.error)
-                  }
                 }
               }
               
@@ -129,34 +118,12 @@ export function setupDisconnectHandlers(
                 roomStates.delete(roomId)
               } else if (updatedGame.gameStatus === 'finished') {
                 // Un seul joueur reste, il gagne
-                const playersScores = updatedGame.players.map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  user_id: p.userId,
-                  score: p.totalScore,
-                  abandoned: p.abandoned,
-                }))
-
-                // Mettre à jour la base de données
-                supabase
-                  .from('games')
-                  .update({
-                    status: 'finished',
-                    winner: updatedGame.winner,
-                    players_scores: playersScores,
-                  })
-                  .eq('id', roomId)
-                  .then(({ error }) => {
-                    if (error) {
-                      console.error('[DISCONNECT] Erreur mise à jour de la partie:', error)
-                    }
-                  })
-
-                io.to(roomId).emit('game_update', updatedGame)
-                io.to(roomId).emit('game_ended', {
-                  winner: updatedGame.winner,
+                await finalizeGame({
+                  io,
+                  supabase,
+                  roomId,
+                  gameState: updatedGame,
                   reason: 'abandon',
-                  message: `${updatedGame.winner} remporte la partie par abandon !`,
                 })
                 roomStates.delete(roomId)
               } else {
@@ -173,6 +140,10 @@ export function setupDisconnectHandlers(
                 
                 const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex]
                 io.to(roomId).emit('system_message', `C'est au tour de ${currentPlayer.name}`)
+
+                if (wasCurrentPlayer) {
+                  startTurnTimerWithCallbacks(io, supabase, roomId)
+                }
               }
               
               // Nettoyer le timer

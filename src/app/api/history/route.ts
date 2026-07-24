@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifyJwtToken } from '@/lib/authServer'
 import { SimpleCache } from '@/lib/simpleCache'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { requireAuth } from '@/lib/authRequest'
 
 // Cache process-local pour l'historique récent d'un utilisateur.
-type PlayerScore = { user_id?: string }
+type HistoryPlayerScore = {
+  id?: string
+  name?: string
+  user_id?: string
+  score?: number
+  abandoned?: boolean
+}
 
-type HistoryGame = {
+type HistoryGameRow = {
   id: string
   owner: string | null
   status: string
   created_at: string
   winner: string | null
-  players_scores: unknown
+  players_scores: HistoryPlayerScore[] | null
   variant: string | null
 }
 
-const historyCache = new SimpleCache<HistoryGame[]>(30_000) // 30 secondes
+const historyCache = new SimpleCache<HistoryGameRow[]>(30_000) // 30 secondes
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get(COOKIE_NAME)?.value
-  const authUser = token ? verifyJwtToken(token) : null
+  const auth = requireAuth(request)
+  if (auth.response) return auth.response
 
-  if (!authUser) {
-    return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
-  }
-
-  const userId = authUser.id
+  const userId = auth.user.id
   const cacheKey = `history_${userId}`
   const cached = historyCache.get(cacheKey)
 
@@ -60,14 +60,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const myGames = ((data ?? []) as unknown as HistoryGame[])
+    const myGames = ((data || []) as HistoryGameRow[])
       .filter((game) => {
         if (game.owner === userId) return true
         if (game.players_scores && Array.isArray(game.players_scores)) {
-          return game.players_scores.some((player: unknown) => {
-            const score = player as PlayerScore
-            return score.user_id === userId
-          })
+          return game.players_scores.some((p) => p.user_id === userId)
         }
         return false
       })

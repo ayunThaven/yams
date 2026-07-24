@@ -59,6 +59,9 @@ export default function GamePage() {
       authLoading,
       userProfile, // Passer le profil pour éviter une requête supplémentaire
       shouldConnect: gameExists === true, // Ne se connecter que si la partie existe
+      onAchievementsUnlocked: (achievements) => {
+        achievements.forEach(showAchievement)
+      },
     }
   )
 
@@ -94,7 +97,6 @@ export default function GamePage() {
 
   // Référence pour savoir si on peut quitter sans confirmation
   const canLeaveWithoutWarning = useRef(false)
-  const joinAchievementSentRef = useRef(false)
 
   // Signaler au contexte global si on est en partie active + passer socket et roomId
   useEffect(() => {
@@ -202,42 +204,6 @@ export default function GamePage() {
     hasPlayedGameStartSoundRef.current = true
   }, [started])
 
-  // Succès : rejoindre une partie (centralisé ici, quelle que soit la façon de rejoindre)
-  useEffect(() => {
-    if (!roomJoined || !userProfile || !ownerId || joinAchievementSentRef.current) {
-      return
-    }
-
-    // Ne pas considérer l'hôte comme "rejoindre une partie"
-    if (userProfile.id === ownerId) {
-      return
-    }
-
-    joinAchievementSentRef.current = true
-
-    ;(async () => {
-      try {
-        const res = await fetch('/api/achievements/unlock', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ achievementId: 'join_game' }),
-        })
-
-        if (res.ok) {
-          const json = await res.json().catch(() => null)
-          if (json?.achievement) {
-            showAchievement(json.achievement)
-          }
-        }
-      } catch (error) {
-        console.warn('[GAME] Impossible de débloquer le succès join_game depuis GamePage:', error)
-      }
-    })()
-  }, [roomJoined, userProfile, ownerId, showAchievement])
-
   /**
    * Gestionnaires d'événements
    */
@@ -248,7 +214,7 @@ export default function GamePage() {
     canLeaveWithoutWarning.current = true
     handleLeaveGame(socket, uuid, started, () => {
       router.push('/dashboard')
-    }, showAchievement)
+    })
   }
 
   const onRollDice = () => handleRollDice(socket, uuid, gameState, setIsRolling, setRollCount)

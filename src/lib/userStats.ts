@@ -172,7 +172,7 @@ export async function getLeaderboard(
       return { data: null, error: error.message }
     }
 
-    return { data: (data ?? []) as UserStats[] }
+    return { data: data as UserStats[] }
   } catch (error) {
     console.error('❌ Erreur lors de la récupération du classement:', error)
     return {

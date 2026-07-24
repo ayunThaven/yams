@@ -1,65 +1,64 @@
-# Yams Tour par Tour
+# Yams
 
-Application multijoueur de Yams construite avec Next.js, Socket.IO et
-Supabase. Le serveur Node personnalisé héberge Next.js et les événements temps
-réel sur le même port.
+Application Next.js 15 + serveur Socket.IO custom pour jouer au Yams en temps réel.
 
-## Prérequis
+## Stack
 
-- Node.js 20
-- Une instance Supabase PostgreSQL
-- Un fournisseur SendGrid pour les emails transactionnels en production
+- Next.js App Router, React 19, Tailwind/DaisyUI
+- Serveur Node custom dans `server.ts`
+- Socket.IO pour les parties en temps réel
+- Supabase/Postgres pour utilisateurs, parties, stats et achievements
+- Auth locale par JWT applicatif : cookie HTTP-only pour les API, token local uniquement pour le handshake Socket.IO
 
-Copiez `env.template` vers `.env`, puis renseignez au minimum :
+## Démarrage local
+
+```bash
+npm ci
+npm run dev
+```
+
+L'application écoute par défaut sur `http://localhost:3000`.
+
+## Variables d'environnement
+
+Copier `env.template` vers `.env.local` ou `.env`, puis renseigner au minimum :
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `AUTH_JWT_SECRET`
-
-Les clés `NEXT_PUBLIC_*` peuvent être présentes au build. Les clés serveur et
-les secrets d'email sont fournis uniquement à l'exécution.
-
-## Commandes
-
-```bash
-npm ci
-npm run dev
-npm run lint
-npm run typecheck
-npm test
-npm run test:integration
-npm run build
-npm run build:server
-```
-
-Le serveur de développement écoute sur `http://localhost:3000` par défaut.
+- `AUTH_COOKIE_SECURE=false` en HTTP local, `true` en HTTPS
 
 ## Base de données
 
-Les migrations incrémentales vivent dans `supabase/migrations` et doivent être
-appliquées dans leur ordre numérique. Elles ne doivent jamais être réécrites
-après déploiement.
+Appliquer toutes les migrations `supabase/migrations` dans l'ordre. Les migrations récentes rendent le schéma reproductible pour :
 
-`supabase/bootstrap/reset-public-schema.sql` est un outil destructif réservé à
-un environnement local vierge. Il supprime le schéma `public` et ne doit ni être
-appliqué à une base existante ni être traité comme une migration.
+- `achievements`, `user_achievements`, `achievements_with_rarity_rank`
+- `unlock_achievement`
+- `game_player_results`
+- `record_game_player_result`, idempotent via `(game_id, user_id)`
 
-## Architecture
+Les stats de partie ne doivent plus être envoyées par le client. Elles sont calculées côté serveur à la fin de la partie, lors d'un abandon ou après expiration du délai de déconnexion.
 
-- `src/app` : pages et routes HTTP Next.js.
-- `src/server` : règles de room, Socket.IO, timers et persistance de jeu.
-- `src/lib` : règles de Yams, authentification et accès Supabase.
-- `server.ts` : point d'entrée du serveur personnalisé.
+## Vérifications
 
-Les contributions doivent passer par des branches et des pull requests. Les
-contrôles CI exécutent lint, TypeScript, tests et les deux builds.
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+Ou tout lancer :
+
+```bash
+npm run check
+```
 
 ## Docker
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
-Les variables sensibles sont injectées au runtime par Docker Compose ; ne les
-utilisez pas comme arguments de build.
+Le Dockerfile utilise `npm ci` pour garantir une installation reproductible.

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { logger } from '@/lib/logger'
 import { GameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
+import { Achievement } from '@/types/achievement'
 import { fetchUsername, fetchAuthToken, getServerRestartId, saveServerRestartId } from './socketHelpers'
 import { setupBasicListeners, setupMessageListeners, setupErrorListeners, setupGameplayListeners } from './socketEventHandlers'
 import { handleServerRestart } from './socketReconnectionHelper'
@@ -21,6 +22,7 @@ interface UseGameSocketParams {
   authLoading: boolean
   userProfile?: UserProfile | null
   shouldConnect?: boolean // Permet de retarder la connexion
+  onAchievementsUnlocked?: (achievements: Achievement[]) => void
 }
 
 interface UseGameSocketReturn {
@@ -47,6 +49,7 @@ export function useGameSocket({
   authLoading,
   userProfile,
   shouldConnect = true, // Par défaut, on se connecte
+  onAchievementsUnlocked,
 }: UseGameSocketParams): UseGameSocketReturn {
   const router = useRouter()
   const socketRef = useRef<Socket | null>(null)
@@ -131,6 +134,10 @@ export function useGameSocket({
         saveServerRestartId(data.newServerRestartId)
         // La connexion est déjà établie, donc on continue normalement
         // Le client peut continuer à utiliser la connexion existante
+      })
+
+      newSocket.on('achievements_unlocked', (achievements: Achievement[]) => {
+        onAchievementsUnlocked?.(achievements)
       })
 
       // Connexion réussie
