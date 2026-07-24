@@ -5,6 +5,8 @@ import { generateGameId } from '@/lib/gameIdGenerator'
 import { unlockActionAchievement } from '@/server/gameFinalization'
 
 const COOKIE_NAME = 'yams_auth_token'
+const GAME_ID = /^[A-HJ-NP-Z2-9]{8}$/
+const VARIANTS = new Set(['classic', 'ascending', 'descending'])
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,11 +26,15 @@ export async function POST(request: NextRequest) {
       id?: string
     }
 
-    if (!variant) {
+    if (!variant || !VARIANTS.has(variant)) {
       return NextResponse.json(
-        { error: 'La variante de jeu est requise.' },
+        { error: 'La variante de jeu est invalide.' },
         { status: 400 }
       )
+    }
+
+    if (providedId && !GAME_ID.test(providedId)) {
+      return NextResponse.json({ error: 'Identifiant de partie invalide.' }, { status: 400 })
     }
 
     const supabase = createAdminClient()

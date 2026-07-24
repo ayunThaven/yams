@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPasswordResetEmail } from '@/lib/emailSender'
+import { allowAuthAttempt } from '@/lib/authRateLimit'
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(request: NextRequest) {
   try {
+    if (!await allowAuthAttempt(request, 'request-reset')) {
+      return NextResponse.json({ error: 'Trop de tentatives. Réessaie plus tard.' }, { status: 429 })
+    }
+
     const body = await request.json()
     const { email } = body as { email?: string }
 
-    if (!email) {
+    if (!email || !EMAIL.test(email)) {
       return NextResponse.json({ error: 'Email requis.' }, { status: 400 })
     }
 

@@ -10,6 +10,7 @@ import { ScoreCategory } from '../types/game'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
 import { updateFinishedGame } from './gameDbUtils'
+import { isScoreCategory, isValidDieIndex, isValidRoomId } from './socketValidation'
 
 /**
  * Configure les gestionnaires d'événements pour le jeu
@@ -24,6 +25,15 @@ export function setupGameHandlers(
    * Lancer les dés
    */
   socket.on('roll_dice', (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
     const playerId = socket.id
     const gameBeforeRoll = getGame(roomId)
     if (!gameBeforeRoll) return
@@ -50,6 +60,15 @@ export function setupGameHandlers(
   socket.on(
     'toggle_die_lock',
     ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
+      if (!isValidRoomId(roomId) || !isValidDieIndex(dieIndex)) {
+        socket.emit('error', { message: 'Action de jeu invalide.' })
+        return
+      }
+      if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+        socket.emit('error', { message: 'Accès à la partie refusé.' })
+        return
+      }
+
       const playerId = socket.id
       const gameBeforeToggle = getGame(roomId)
       if (!gameBeforeToggle) return
@@ -72,6 +91,15 @@ export function setupGameHandlers(
    * Choisir une catégorie de score
    */
   socket.on('choose_score', async ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
+    if (!isValidRoomId(roomId) || !isScoreCategory(category)) {
+      socket.emit('error', { message: 'Action de jeu invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
     const playerId = socket.id
     
     // Capturer l'état AVANT pour détecter le changement de tour
@@ -133,6 +161,15 @@ export function setupGameHandlers(
    * Abandonner une partie en cours
    */
   socket.on('abandon_game', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
     const playerName = socket.data.playerName || 'Un joueur'
     const userId = socket.data.userId
     const roomState = roomStates.get(roomId)
@@ -219,6 +256,15 @@ export function setupGameHandlers(
       newRoomId: string
       hostName: string
     }) => {
+      if (!isValidRoomId(oldRoomId) || !isValidRoomId(newRoomId)) {
+        socket.emit('error', { message: 'Identifiant de partie invalide.' })
+        return
+      }
+      if (!socket.data.authenticated || !socket.rooms.has(oldRoomId)) {
+        socket.emit('error', { message: 'Accès à la partie refusé.' })
+        return
+      }
+
       // Notifier tous les joueurs de l'ancienne room qu'une nouvelle partie est disponible
       socket.to(oldRoomId).emit('rematch_available', {
         newRoomId,
@@ -231,7 +277,27 @@ export function setupGameHandlers(
    * Gestion du départ de l'hôte d'une partie terminée
    * Redirige automatiquement tous les autres joueurs vers le dashboard
    */
-  socket.on('host_leaving_finished_game', (roomId: string) => {
+  socket.on('host_leaving_finished_game', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
+    const { data: game } = await supabase
+      .from('games')
+      .select('owner, status')
+      .eq('id', roomId)
+      .maybeSingle()
+
+    if (!game || game.owner !== socket.data.userId || game.status !== 'finished') {
+      socket.emit('error', { message: 'Action réservée à l\'hôte de la partie terminée.' })
+      return
+    }
+
     // Notifier tous les autres joueurs de retourner au dashboard
     socket.to(roomId).emit('host_left_finished_game', {
       message: 'L\'hôte a quitté la partie. Redirection vers le dashboard...'

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/authServer'
+import { allowAuthAttempt } from '@/lib/authRateLimit'
 
 const COOKIE_NAME = 'yams_auth_token'
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Par défaut: secure = true en production, false en dev.
 // Surchargable via AUTH_COOKIE_SECURE pour les environnements HTTP derrière Docker/proxy.
@@ -15,10 +17,14 @@ const COOKIE_SECURE =
 
 export async function POST(request: NextRequest) {
   try {
+    if (!await allowAuthAttempt(request, 'login')) {
+      return NextResponse.json({ error: 'Trop de tentatives. Réessaie plus tard.' }, { status: 429 })
+    }
+
     const body = await request.json()
     const { email, password } = body as { email?: string; password?: string }
 
-    if (!email || !password) {
+    if (!email || !password || !EMAIL.test(email) || password.length > 1024) {
       return NextResponse.json(
         { error: 'Email et mot de passe sont requis.' },
         { status: 400 }
@@ -30,8 +36,6 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json(
       {
         user,
-        token, // exposé pour le handshake Socket (stocké en localStorage)
-        expiresIn,
       },
       { status: 200 }
     )

@@ -95,11 +95,6 @@ app.prepare().then(async () => {
   // Initialiser Socket.IO
   const io = new IOServer(server, {
     path: '/api/socket',
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
     // Configuration pour Docker/production
     pingTimeout: 60000, // 60s avant de considérer la connexion morte
     pingInterval: 25000, // Ping toutes les 25s pour maintenir la connexion

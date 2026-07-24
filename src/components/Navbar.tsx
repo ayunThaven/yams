@@ -6,7 +6,6 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/Providers"
 import { useGameProtection } from "@/contexts/GameProtectionContext"
-import { tokenManager } from "@/lib/tokenManager"
 import { generateGameId } from "@/lib/gameIdGenerator"
 import { GameVariant } from "@/types/game"
 import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from "@/lib/variantLogic"
@@ -46,7 +45,6 @@ export default function Navbar() {
       console.error('Erreur lors de la déconnexion:', error)
     }
 
-    tokenManager.clearTokens()
     await refreshUserProfile()
 
     setLoading(false)

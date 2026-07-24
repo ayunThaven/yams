@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { logger } from '@/lib/logger'
 import { GameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
-import { fetchUsername, fetchAuthToken, getServerRestartId, saveServerRestartId } from './socketHelpers'
+import { fetchUsername, getServerRestartId, saveServerRestartId } from './socketHelpers'
 import { setupBasicListeners, setupMessageListeners, setupErrorListeners, setupGameplayListeners } from './socketEventHandlers'
 import { handleServerRestart } from './socketReconnectionHelper'
 
@@ -97,13 +97,6 @@ export function useGameSocket({
       const playerName = await fetchUsername(user, userProfile)
       if (!playerName) return
 
-      const token = await fetchAuthToken()
-      if (!token) {
-        logger.error("Pas de token d'authentification disponible")
-        isConnectingRef.current = false
-        return
-      }
-
       // Créer la connexion Socket.IO
       const newSocket = io({
         path: '/api/socket',
@@ -111,8 +104,8 @@ export function useGameSocket({
         reconnection: false,
         timeout: 20000,
         forceNew: true,
+        withCredentials: true,
         auth: {
-          token,
           serverRestartId: getServerRestartId(),
         },
       })
