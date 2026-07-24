@@ -1,54 +1,33 @@
-/**
- * Utilitaires pour la gestion de la base de données des parties
- * Centralise les opérations DB pour éviter la duplication
- */
-
 import { SupabaseClient } from '@supabase/supabase-js'
+
 import { GameState } from '../types/game'
+import { finalizeGame } from './gameFinalization'
 
 /**
- * Met à jour une partie terminée dans la base de données
- * Enregistre le statut, le gagnant et les scores des joueurs
+ * Records a completed game exactly once. The database function owns result
+ * persistence and user-stat updates so clients cannot forge either value.
  */
 export async function updateFinishedGame(
   supabase: SupabaseClient,
   roomId: string,
   gameState: GameState
 ): Promise<{ success: boolean; error?: string }> {
-  // Formater les scores des joueurs
-  const playersScores = gameState.players.map((p) => ({
-    id: p.id,
-    name: p.name,
-    user_id: p.userId,
-    score: p.totalScore,
-    abandoned: p.abandoned,
-  }))
+  if (gameState.roomId !== roomId) {
+    return { success: false, error: 'Game state does not match the requested room.' }
+  }
 
   try {
-    const { error } = await supabase
-      .from('games')
-      .update({
-        status: 'finished',
-        winner: gameState.winner,
-        players_scores: playersScores,
-      })
-      .eq('id', roomId)
-
-    if (error) {
-      console.error('[DB] Erreur mise à jour de la partie:', error)
-      return { success: false, error: error.message }
+    const result = await finalizeGame(supabase, gameState)
+    if (!result.success) {
+      console.error('[DB] Game finalization failed:', result.error)
     }
-
-    return { success: true }
-  } catch (err) {
-    console.error('[DB] Exception lors de la mise à jour:', err)
-    return { success: false, error: String(err) }
+    return result
+  } catch (error) {
+    console.error('[DB] Unexpected game finalization error:', error)
+    return { success: false, error: String(error) }
   }
 }
 
-/**
- * Met à jour le statut d'une partie
- */
 export async function updateGameStatus(
   supabase: SupabaseClient,
   roomId: string,
@@ -61,14 +40,13 @@ export async function updateGameStatus(
       .eq('id', roomId)
 
     if (error) {
-      console.error('[DB] Erreur mise à jour du status:', error)
+      console.error('[DB] Game status update failed:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
-  } catch (err) {
-    console.error('[DB] Exception lors de la mise à jour du status:', err)
-    return { success: false, error: String(err) }
+  } catch (error) {
+    console.error('[DB] Unexpected game status error:', error)
+    return { success: false, error: String(error) }
   }
 }
-

@@ -94,7 +94,7 @@ export function setupRoomHandlers(
     io.to(roomId).emit('system_message', `C'est au tour de ${firstPlayer.name}`)
 
     // Démarrer le timer pour le premier tour
-    startTurnTimerWithCallbacks(io, roomId)
+    startTurnTimerWithCallbacks(io, roomId, supabase)
   }
 
   /**

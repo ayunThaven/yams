@@ -7,7 +7,6 @@ import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './gameManager'
 import { ScoreCategory } from '../types/game'
-import { updateUserStats, countYamsInScoreSheet, getUserProfile } from '../lib/userStats'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
 import { updateFinishedGame } from './gameDbUtils'
@@ -72,7 +71,7 @@ export function setupGameHandlers(
   /**
    * Choisir une catégorie de score
    */
-  socket.on('choose_score', ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
+  socket.on('choose_score', async ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
     const playerId = socket.id
     
     // Capturer l'état AVANT pour détecter le changement de tour
@@ -103,7 +102,11 @@ export function setupGameHandlers(
 
       if (gameState.gameStatus === 'finished') {
         // Mettre à jour la base de données
-        updateFinishedGame(supabase, roomId, gameState)
+        const persisted = await updateFinishedGame(supabase, roomId, gameState)
+        if (!persisted.success) {
+          socket.emit('error', { message: 'Impossible de finaliser la partie.' })
+          return
+        }
 
         io.to(roomId).emit('game_ended', {
           winner: gameState.winner,
@@ -121,7 +124,7 @@ export function setupGameHandlers(
         io.to(roomId).emit('system_message', `C'est au tour de ${currentPlayer.name}`)
         
         // Démarrer le timer pour le nouveau tour
-        startTurnTimerWithCallbacks(io, roomId)
+        startTurnTimerWithCallbacks(io, roomId, supabase)
       }
     }
   })
@@ -141,46 +144,13 @@ export function setupGameHandlers(
     // Marquer qu'il s'agit d'un abandon volontaire pour éviter le délai de grâce
     socket.data.voluntaryAbandon = true
 
-    // Récupérer le gameState AVANT de retirer le joueur pour sauvegarder ses stats
+    // Récupérer l'état avant le retrait afin de savoir si le timer doit redémarrer.
     const gameBeforeRemoval = getGame(roomId)
-    
-    // Vérifier si c'était le tour du joueur qui abandonne
     let wasCurrentPlayer = false
 
     if (gameBeforeRemoval && userId) {
-      // Trouver le joueur qui abandonne
-      const abandoningPlayer = gameBeforeRemoval.players.find((p) => p.id === socket.id)
-      
-      // Vérifier si c'était son tour
-      if (abandoningPlayer) {
-        const playerIndex = gameBeforeRemoval.players.findIndex((p) => p.id === socket.id)
-        wasCurrentPlayer = (playerIndex === gameBeforeRemoval.currentPlayerIndex)
-        
-        // Compter les Yams réalisés
-        const yamsCount = countYamsInScoreSheet(abandoningPlayer.scoreSheet)
-
-        // Récupérer le niveau actuel du joueur pour calculer la perte d'XP
-        const { data: userProfile } = await getUserProfile(supabase, userId)
-        const currentLevel = userProfile?.level || 1
-        
-        // Calculer la perte d'XP: exp -= lvl * 10
-        const xpLoss = currentLevel * 10
-        const xpGained = -xpLoss
-
-        // Enregistrer les statistiques d'abandon
-        const result = await updateUserStats(supabase, {
-          user_id: userId,
-          score: abandoningPlayer.totalScore,
-          won: false,
-          abandoned: true,
-          yams_count: yamsCount,
-          xp_gained: xpGained,
-        })
-
-        if (!result.success) {
-          console.error(`[STATS] Erreur sauvegarde stats d'abandon:`, result.error)
-        }
-      }
+      const playerIndex = gameBeforeRemoval.players.findIndex((player) => player.id === socket.id)
+      wasCurrentPlayer = playerIndex === gameBeforeRemoval.currentPlayerIndex
     }
 
     // Retirer le joueur du gameState
@@ -196,7 +166,11 @@ export function setupGameHandlers(
       roomStates.delete(roomId)
     } else if (updatedGame.gameStatus === 'finished') {
       // Mettre à jour la base de données
-      updateFinishedGame(supabase, roomId, updatedGame)
+      const persisted = await updateFinishedGame(supabase, roomId, updatedGame)
+      if (!persisted.success) {
+        socket.emit('error', { message: 'Impossible de finaliser la partie.' })
+        return
+      }
 
       io.to(roomId).emit('game_update', updatedGame)
       io.to(roomId).emit('game_ended', {
@@ -226,7 +200,7 @@ export function setupGameHandlers(
       // Redémarrer le timer uniquement si c'était le tour du joueur qui abandonne
       // (le timer a été nettoyé dans removePlayer dans ce cas)
       if (wasCurrentPlayer) {
-        startTurnTimerWithCallbacks(io, roomId)
+        startTurnTimerWithCallbacks(io, roomId, supabase)
       }
     }
   })

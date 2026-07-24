@@ -10,7 +10,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSupabase } from '@/components/Providers'
 import { useGameSocket } from '@/hooks/useGameSocket'
 import { useGameProtection } from '@/contexts/GameProtectionContext'
-import { useFlashMessage } from '@/contexts/FlashMessageContext'
 import {
   handleStartGame,
   handleLeaveGame,
@@ -32,7 +31,6 @@ export default function GamePage() {
   const router = useRouter()
   const { user, userProfile, isLoading: authLoading } = useSupabase()
   const { setIsInActiveGame, setSocket, setRoomId } = useGameProtection()
-  const { showAchievement } = useFlashMessage()
   const userId = user?.id
 
   // Vérification de l'existence de la partie
@@ -94,7 +92,6 @@ export default function GamePage() {
 
   // Référence pour savoir si on peut quitter sans confirmation
   const canLeaveWithoutWarning = useRef(false)
-  const joinAchievementSentRef = useRef(false)
 
   // Signaler au contexte global si on est en partie active + passer socket et roomId
   useEffect(() => {
@@ -202,42 +199,6 @@ export default function GamePage() {
     hasPlayedGameStartSoundRef.current = true
   }, [started])
 
-  // Succès : rejoindre une partie (centralisé ici, quelle que soit la façon de rejoindre)
-  useEffect(() => {
-    if (!roomJoined || !userProfile || !ownerId || joinAchievementSentRef.current) {
-      return
-    }
-
-    // Ne pas considérer l'hôte comme "rejoindre une partie"
-    if (userProfile.id === ownerId) {
-      return
-    }
-
-    joinAchievementSentRef.current = true
-
-    ;(async () => {
-      try {
-        const res = await fetch('/api/achievements/unlock', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ achievementId: 'join_game' }),
-        })
-
-        if (res.ok) {
-          const json = await res.json().catch(() => null)
-          if (json?.achievement) {
-            showAchievement(json.achievement)
-          }
-        }
-      } catch (error) {
-        console.warn('[GAME] Impossible de débloquer le succès join_game depuis GamePage:', error)
-      }
-    })()
-  }, [roomJoined, userProfile, ownerId, showAchievement])
-
   /**
    * Gestionnaires d'événements
    */
@@ -248,7 +209,7 @@ export default function GamePage() {
     canLeaveWithoutWarning.current = true
     handleLeaveGame(socket, uuid, started, () => {
       router.push('/dashboard')
-    }, showAchievement)
+    })
   }
 
   const onRollDice = () => handleRollDice(socket, uuid, gameState, setIsRolling, setRollCount)

@@ -101,9 +101,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [writeCachedAuthAndProfile])
 
-  const refreshUserProfile = async () => {
+  const refreshUserProfile = useCallback(async () => {
     await fetchAuthAndProfile()
-  }
+  }, [fetchAuthAndProfile])
 
   useEffect(() => {
     let cancelled = false

@@ -4,14 +4,20 @@
  */
 
 import { Server } from 'socket.io'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { handleTimerExpired, startTurnTimer } from './gameManager'
 import { getCategoryLabel } from '../lib/categoryLabels'
+import { updateFinishedGame } from './gameDbUtils'
 
 /**
  * Gère l'expiration du timer et redémarre le timer suivant
  * Utilisé par les handlers de room et de jeu
  */
-export function handleTimerExpiredAndRestart(io: Server, roomId: string): void {
+export async function handleTimerExpiredAndRestart(
+  io: Server,
+  roomId: string,
+  supabase: SupabaseClient
+): Promise<void> {
   const result = handleTimerExpired(roomId)
   if (!result) return
   
@@ -26,6 +32,12 @@ export function handleTimerExpiredAndRestart(io: Server, roomId: string): void {
   
   // Si la partie est terminée
   if (updatedGameState.gameStatus === 'finished') {
+    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState)
+    if (!persisted.success) {
+      io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
+      return
+    }
+
     io.to(roomId).emit('game_ended', {
       winner: updatedGameState.winner,
       reason: 'completed',
@@ -39,7 +51,7 @@ export function handleTimerExpiredAndRestart(io: Server, roomId: string): void {
     // Redémarrer le timer (appel récursif)
     startTurnTimer(
       roomId,
-      () => handleTimerExpiredAndRestart(io, roomId),
+      () => void handleTimerExpiredAndRestart(io, roomId, supabase),
       (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
     )
   }
@@ -49,10 +61,14 @@ export function handleTimerExpiredAndRestart(io: Server, roomId: string): void {
  * Démarre le timer pour un nouveau tour
  * Centralise la logique commune d'initialisation du timer
  */
-export function startTurnTimerWithCallbacks(io: Server, roomId: string): void {
+export function startTurnTimerWithCallbacks(
+  io: Server,
+  roomId: string,
+  supabase: SupabaseClient
+): void {
   startTurnTimer(
     roomId,
-    () => handleTimerExpiredAndRestart(io, roomId),
+    () => void handleTimerExpiredAndRestart(io, roomId, supabase),
     (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
   )
 }

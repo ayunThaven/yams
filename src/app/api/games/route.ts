@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyJwtToken } from '@/lib/authServer'
 import { generateGameId } from '@/lib/gameIdGenerator'
+import { unlockActionAchievement } from '@/server/gameFinalization'
 
 const COOKIE_NAME = 'yams_auth_token'
 
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await unlockActionAchievement(supabase, authUser.id, 'create_game')
 
     return NextResponse.json(
       {

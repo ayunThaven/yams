@@ -6,8 +6,6 @@ import { SimpleCache } from '@/lib/simpleCache'
 const COOKIE_NAME = 'yams_auth_token'
 
 // Cache process-local pour l'historique récent d'un utilisateur.
-type PlayerScore = { user_id?: string }
-
 type HistoryGame = {
   id: string
   owner: string | null
@@ -16,6 +14,13 @@ type HistoryGame = {
   winner: string | null
   players_scores: unknown
   variant: string | null
+}
+
+type HistoryResultRow = {
+  score: number
+  abandoned: boolean
+  finalized_at: string
+  games: HistoryGame | HistoryGame[] | null
 }
 
 const historyCache = new SimpleCache<HistoryGame[]>(30_000) // 30 secondes
@@ -46,11 +51,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { data, error } = await supabase
-      .from('games')
-      .select('id, owner, status, created_at, winner, players_scores, variant')
-      .eq('status', 'finished')
-      .order('created_at', { ascending: false })
-      .limit(50)
+      .from('game_results')
+      .select('score, abandoned, finalized_at, games!inner(id, owner, status, created_at, winner, players_scores, variant)')
+      .eq('user_id', userId)
+      .order('finalized_at', { ascending: false })
+      .limit(10)
 
     if (error) {
       console.error('[API/HISTORY] Erreur chargement games:', error)
@@ -60,18 +65,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const myGames = ((data ?? []) as unknown as HistoryGame[])
-      .filter((game) => {
-        if (game.owner === userId) return true
-        if (game.players_scores && Array.isArray(game.players_scores)) {
-          return game.players_scores.some((player: unknown) => {
-            const score = player as PlayerScore
-            return score.user_id === userId
-          })
-        }
-        return false
+    const myGames = ((data ?? []) as unknown as HistoryResultRow[])
+      .flatMap((result) => {
+        const game = Array.isArray(result.games) ? result.games[0] : result.games
+        return game ? [game] : []
       })
-      .slice(0, 10)
 
     historyCache.set(cacheKey, myGames)
 

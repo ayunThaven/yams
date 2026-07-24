@@ -6,7 +6,6 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/Providers"
 import { useGameProtection } from "@/contexts/GameProtectionContext"
-import { useFlashMessage } from "@/contexts/FlashMessageContext"
 import { tokenManager } from "@/lib/tokenManager"
 import { generateGameId } from "@/lib/gameIdGenerator"
 import { GameVariant } from "@/types/game"
@@ -17,7 +16,6 @@ import { useTheme } from "next-themes"
 
 export default function Navbar() {
   const { user, userProfile, refreshUserProfile } = useSupabase()
-  const { showAchievement } = useFlashMessage()
   const [loading, setLoading] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [joinCode, setJoinCode] = useState("")
@@ -130,31 +128,6 @@ export default function Navbar() {
         setCreateLoading(false)
         alert(`Erreur lors de la création de la partie: ${data.error || 'Erreur inconnue'}`)
       } else {
-        // Débloquer les succès d'action liés à la création de partie
-        try {
-          const res = await fetch('/api/achievements/unlock', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ achievementId: 'create_game' }),
-          })
-
-          if (res.ok) {
-            const json = await res.json().catch(() => null)
-            if (json?.achievement) {
-              showAchievement(json.achievement)
-            }
-          }
-
-          // Si la partie créée est privée, débloquer aussi create_private_game
-          // L'information de confidentialité sera ajoutée plus tard. (friend system)
-          // Pour l'instant, on ne débloque que create_game.
-        } catch (unlockError) {
-          console.warn('Impossible de débloquer le succès create_game:', unlockError)
-        }
-
         setShowCreateModal(false)
         await new Promise((resolve) => setTimeout(resolve, 200))
         router.push(`/game/${id}`)
