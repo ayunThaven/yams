@@ -4,7 +4,7 @@ import { GameState, ScoreCategory, GameVariant, ScoreSheet } from '../types/game
 import { calculateScore, calculateTotalScore, createEmptyScoreSheet, isScoreSheetComplete } from '../lib/yamsLogic'
 import { canChooseCategory } from '../lib/variantLogic'
 import { createDice, rollUnlockedDice } from './diceManager'
-import { getGameState, setGameState, deleteGameState, clearAllGames as clearAllGameStates } from './gameStateManager'
+import { getGameState, setGameState, deleteGameState, clearAllGames as clearAllGameStates, restoreGameState } from './gameStateManager'
 import { startTurnTimer, clearTurnTimer, clearAllTimers } from './timerManager'
 
 /**
@@ -17,6 +17,7 @@ export function clearAllGames(): void {
 
 // Ré-exporter pour compatibilité
 export { getGameState, startTurnTimer, clearTurnTimer }
+export { restoreGameState }
 
 /**
  * Met à jour le socket.id d'un joueur (reconnexion)

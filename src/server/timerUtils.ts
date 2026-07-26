@@ -5,9 +5,9 @@
 
 import { Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { handleTimerExpired, startTurnTimer } from './gameManager'
+import { getGameState, handleTimerExpired, startTurnTimer } from './gameManager'
 import { getCategoryLabel } from '../lib/categoryLabels'
-import { updateFinishedGame } from './gameDbUtils'
+import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
 
 /**
  * Gère l'expiration du timer et redémarre le timer suivant
@@ -54,6 +54,7 @@ export async function handleTimerExpiredAndRestart(
       () => void handleTimerExpiredAndRestart(io, roomId, supabase),
       (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
     )
+    await saveGameSnapshot(supabase, updatedGameState)
   }
 }
 
@@ -61,15 +62,19 @@ export async function handleTimerExpiredAndRestart(
  * Démarre le timer pour un nouveau tour
  * Centralise la logique commune d'initialisation du timer
  */
-export function startTurnTimerWithCallbacks(
+export async function startTurnTimerWithCallbacks(
   io: Server,
   roomId: string,
-  supabase: SupabaseClient
-): void {
+  supabase: SupabaseClient,
+  expiresAt?: number
+): Promise<void> {
   startTurnTimer(
     roomId,
     () => void handleTimerExpiredAndRestart(io, roomId, supabase),
-    (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
+    (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft),
+    expiresAt
   )
+  const gameState = getGameState(roomId)
+  if (gameState) await saveGameSnapshot(supabase, gameState)
 }
 

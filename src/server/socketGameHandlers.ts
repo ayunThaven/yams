@@ -9,7 +9,7 @@ import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './g
 import { ScoreCategory } from '../types/game'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
-import { updateFinishedGame } from './gameDbUtils'
+import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
 import { isScoreCategory, isValidDieIndex, isValidRoomId } from './socketValidation'
 
 /**
@@ -24,7 +24,7 @@ export function setupGameHandlers(
   /**
    * Lancer les dés
    */
-  socket.on('roll_dice', (roomId: string) => {
+  socket.on('roll_dice', async (roomId: string) => {
     if (!isValidRoomId(roomId)) {
       socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
@@ -47,6 +47,10 @@ export function setupGameHandlers(
     
     const gameState = rollDice(roomId, playerId)
     if (gameState) {
+      if (!await saveGameSnapshot(supabase, gameState)) {
+        socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+        return
+      }
       // Signaler à tous les joueurs qu'un lancer a eu lieu (pour l'animation)
       io.to(roomId).emit('dice_rolled')
       
@@ -59,7 +63,7 @@ export function setupGameHandlers(
    */
   socket.on(
     'toggle_die_lock',
-    ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
+    async ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
       if (!isValidRoomId(roomId) || !isValidDieIndex(dieIndex)) {
         socket.emit('error', { message: 'Action de jeu invalide.' })
         return
@@ -82,6 +86,10 @@ export function setupGameHandlers(
       
       const gameState = toggleDieLock(roomId, playerId, dieIndex)
       if (gameState) {
+        if (!await saveGameSnapshot(supabase, gameState)) {
+          socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+          return
+        }
         io.to(roomId).emit('game_update', gameState)
       }
     }
@@ -238,6 +246,8 @@ export function setupGameHandlers(
       // (le timer a été nettoyé dans removePlayer dans ce cas)
       if (wasCurrentPlayer) {
         startTurnTimerWithCallbacks(io, roomId, supabase)
+      } else if (!await saveGameSnapshot(supabase, updatedGame)) {
+        socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
       }
     }
   })

@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 
 import { GameState } from '../types/game'
 import { finalizeGame } from './gameFinalization'
+import { GameRepository } from './gameRepository'
 
 /**
  * Records a completed game exactly once. The database function owns result
@@ -25,6 +26,16 @@ export async function updateFinishedGame(
   } catch (error) {
     console.error('[DB] Unexpected game finalization error:', error)
     return { success: false, error: String(error) }
+  }
+}
+
+export async function saveGameSnapshot(supabase: SupabaseClient, gameState: GameState): Promise<boolean> {
+  try {
+    await new GameRepository(supabase).save(gameState)
+    return true
+  } catch (error) {
+    console.error('[DB] Snapshot persistence failed:', error)
+    return false
   }
 }
 
