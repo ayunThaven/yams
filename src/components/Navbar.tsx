@@ -6,7 +6,7 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/Providers"
 import { useGameProtection } from "@/contexts/GameProtectionContext"
-import { generateGameId } from "@/lib/gameIdGenerator"
+import { createGame } from "@/lib/createGame"
 import { GameVariant } from "@/types/game"
 import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from "@/lib/variantLogic"
 import ThemeToggle from "./ThemeToggle"
@@ -22,6 +22,8 @@ export default function Navbar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [selectedVariant, setSelectedVariant] = useState<GameVariant>('classic')
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [joinError, setJoinError] = useState<string | null>(null)
   const router = useRouter()
   const { isInActiveGame, handleAbandonBeforeNavigation } = useGameProtection()
   const { theme, setTheme } = useTheme()
@@ -55,11 +57,12 @@ export default function Navbar() {
   const handleJoinGame = async () => {
     const trimmed = joinCode.trim()
     if (!trimmed) {
-      alert("Veuillez entrer un code de partie valide.")
+      setJoinError('Veuillez entrer un code de partie valide.')
       return
     }
 
     try {
+      setJoinError(null)
       setJoinLoading(true)
       // On vide le champ dès que l'action est lancée
       setJoinCode("")
@@ -107,24 +110,14 @@ export default function Navbar() {
     }
 
     setCreateLoading(true)
+    setCreateError(null)
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    const id = generateGameId()
-
     try {
-      const response = await fetch('/api/games', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, variant: selectedVariant }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
+      const { id, error } = await createGame(selectedVariant)
+      if (error) {
         setCreateLoading(false)
-        alert(`Erreur lors de la création de la partie: ${data.error || 'Erreur inconnue'}`)
+        setCreateError(error)
       } else {
         setShowCreateModal(false)
         await new Promise((resolve) => setTimeout(resolve, 200))
@@ -133,7 +126,7 @@ export default function Navbar() {
     } catch (err) {
       console.error('Erreur création partie:', err)
       setCreateLoading(false)
-      alert('Erreur inattendue lors de la création de la partie')
+      setCreateError('Erreur inattendue lors de la création de la partie')
     }
   }
 
@@ -205,6 +198,7 @@ export default function Navbar() {
                   onClick={handlePaste}
                   disabled={joinLoading}
                   title="Coller le code de la partie"
+                  aria-label="Coller le code de la partie"
                 >
                   📋
                 </button>
@@ -234,6 +228,7 @@ export default function Navbar() {
                   )}
                 </button>
               </div>
+              {joinError && <p className="text-error text-sm mt-2" role="alert">{joinError}</p>}
             </div>
           </div>
         )}
@@ -411,6 +406,7 @@ export default function Navbar() {
         <div className="modal modal-open">
           <div className="modal-box card-bordered max-w-2xl">
             <h3 className="font-bold text-2xl mb-6">Choisir une variante</h3>
+            {createError && <div className="alert alert-error mb-4" role="alert">{createError}</div>}
             
             <div className="space-y-4">
               {/* Variante Classique */}
