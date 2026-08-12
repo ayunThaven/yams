@@ -1,3 +1,5 @@
+import { createHash } from 'crypto'
+
 import { NextRequest } from 'next/server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -8,12 +10,20 @@ function clientAddress(request: NextRequest): string {
     || 'unknown'
 }
 
+function emailFingerprint(email: string | undefined): string | null {
+  if (!email) return null
+  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 24)
+}
+
+export type RateLimitResult = 'allowed' | 'limited' | 'unavailable'
+
 export async function allowAuthAttempt(
   request: NextRequest,
-  action: 'login' | 'register' | 'request-reset'
-): Promise<boolean> {
+  action: 'login' | 'register' | 'request-reset',
+  email?: string
+): Promise<RateLimitResult> {
   const supabase = createAdminClient()
-  if (!supabase) return false
+  if (!supabase) return 'unavailable'
 
   const limits = {
     login: { limit: 10, window: 15 * 60 },
@@ -22,10 +32,14 @@ export async function allowAuthAttempt(
   }
   const { limit, window } = limits[action]
   const { data, error } = await supabase.rpc('consume_auth_rate_limit', {
-    p_bucket: `${action}:${clientAddress(request)}`,
+    p_bucket: `${action}:${clientAddress(request)}:${emailFingerprint(email) ?? 'anonymous'}`,
     p_limit: limit,
     p_window_seconds: window,
   })
 
-  return !error && data === true
+  if (error) {
+    console.error('[AUTH] Rate-limit RPC unavailable:', error.message)
+    return 'unavailable'
+  }
+  return data === true ? 'allowed' : 'limited'
 }
