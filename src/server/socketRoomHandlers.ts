@@ -86,7 +86,21 @@ export function setupRoomHandlers(
     const gameState = initializeGame(roomId, players, variant)
 
     // Mettre à jour le status dans la base de données
-    updateGameStatus(supabase, roomId, 'in_progress')
+    const statusUpdated = await updateGameStatus(supabase, roomId, 'in_progress')
+    if (!statusUpdated.success) {
+      roomStates.delete(roomId)
+      socket.emit('error', { message: 'Impossible de démarrer la partie.' })
+      return
+    }
+
+    try {
+      await startTurnTimerWithCallbacks(io, roomId, supabase)
+    } catch (error) {
+      roomStates.delete(roomId)
+      socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+      console.error('[ROOM] Impossible de sauvegarder la partie au démarrage:', error)
+      return
+    }
 
     // Émettre l'événement de démarrage
     io.to(roomId).emit('game_started', gameState)
@@ -99,7 +113,6 @@ export function setupRoomHandlers(
     io.to(roomId).emit('system_message', `C'est au tour de ${firstPlayer.name}`)
 
     // Démarrer le timer pour le premier tour
-    startTurnTimerWithCallbacks(io, roomId, supabase)
   }
 
   /**

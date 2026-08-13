@@ -10,11 +10,33 @@ export type StoredGameSnapshot = {
 }
 
 const snapshotVersions = new Map<string, number>()
+const saveQueues = new Map<string, Promise<void>>()
+
+function cloneGameState(gameState: GameState): GameState {
+  return JSON.parse(JSON.stringify(gameState)) as GameState
+}
 
 export class GameRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async save(gameState: GameState): Promise<void> {
+    const snapshot = cloneGameState(gameState)
+    const previousSave = saveQueues.get(snapshot.roomId) ?? Promise.resolve()
+    const currentSave = previousSave
+      .catch(() => undefined)
+      .then(() => this.saveSnapshot(snapshot))
+
+    saveQueues.set(snapshot.roomId, currentSave)
+    try {
+      await currentSave
+    } finally {
+      if (saveQueues.get(snapshot.roomId) === currentSave) {
+        saveQueues.delete(snapshot.roomId)
+      }
+    }
+  }
+
+  private async saveSnapshot(gameState: GameState): Promise<void> {
     const expectedVersion = snapshotVersions.get(gameState.roomId) ?? 0
     const turnExpiresAt = gameState.turnStartTime && gameState.turnTimeLeft !== undefined
       ? new Date(gameState.turnStartTime + gameState.turnTimeLeft * 1000).toISOString()
