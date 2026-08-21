@@ -4,36 +4,7 @@
 "use client";
 
 import { tokenManager } from './tokenManager'
-import { createClient } from './supabase/browser'
 import { logger } from './logger'
-
-/**
- * Régénère automatiquement le token depuis Supabase
- */
-async function refreshTokenFromSupabase(): Promise<string | null> {
-  try {
-    logger.debug('Tentative de régénération du token depuis Supabase')
-    const supabase = createClient()
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    if (error || !session?.access_token) {
-      logger.error('Impossible de régénérer le token:', error)
-      return null
-    }
-    
-    // Mettre à jour les tokens dans le storage local
-    tokenManager.setToken(session.access_token, session.expires_in ?? 3600)
-    if (session.refresh_token) {
-      tokenManager.setRefreshToken(session.refresh_token)
-    }
-    
-    logger.success('Token régénéré avec succès')
-    return session.access_token
-  } catch (error) {
-    logger.error('Erreur lors de la régénération du token:', error)
-    return null
-  }
-}
 
 /**
  * Effectue une requête API avec le token d'authentification
@@ -43,16 +14,11 @@ export async function apiRequest<T = unknown>(
   options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    // Si le token est invalide ou expiré, essayer de le régénérer
     if (!tokenManager.isTokenValid()) {
-      logger.warn('Token invalide ou expiré, tentative de régénération')
-      const newToken = await refreshTokenFromSupabase()
-      
-      if (!newToken) {
-        return {
-          data: null,
-          error: 'Session expirée. Veuillez vous reconnecter.',
-        }
+      tokenManager.clearTokens()
+      return {
+        data: null,
+        error: 'Session expirée. Veuillez vous reconnecter.',
       }
     }
 
@@ -71,41 +37,12 @@ export async function apiRequest<T = unknown>(
       const errorText = await response.text()
       logger.error('Erreur API:', response.status, errorText)
       
-      // Si 401, essayer une dernière fois de régénérer le token
       if (response.status === 401) {
-        logger.warn('Erreur 401, tentative de régénération du token')
-        const newToken = await refreshTokenFromSupabase()
-        
-        if (!newToken) {
-          tokenManager.clearTokens()
-          return {
-            data: null,
-            error: 'Session expirée. Veuillez vous reconnecter.',
-          }
+        tokenManager.clearTokens()
+        return {
+          data: null,
+          error: 'Session expirée. Veuillez vous reconnecter.',
         }
-        
-        // Retenter la requête avec le nouveau token
-        logger.debug('Nouvelle tentative avec le token régénéré')
-        const retryHeaders = {
-          ...tokenManager.getAuthHeaders(),
-          ...options.headers,
-        }
-        
-        const retryResponse = await fetch(url, {
-          ...options,
-          headers: retryHeaders,
-        })
-        
-        if (!retryResponse.ok) {
-          const retryErrorText = await retryResponse.text()
-          return {
-            data: null,
-            error: `Erreur ${retryResponse.status}: ${retryErrorText}`,
-          }
-        }
-        
-        const retryData = await retryResponse.json()
-        return { data: retryData, error: null }
       }
 
       return {

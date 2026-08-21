@@ -48,5 +48,3 @@ supabase
 *.md
 .prettierrc
 .eslintrc
-eslint.config.mjs
-

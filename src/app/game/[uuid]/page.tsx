@@ -57,6 +57,9 @@ export default function GamePage() {
       authLoading,
       userProfile, // Passer le profil pour éviter une requête supplémentaire
       shouldConnect: gameExists === true, // Ne se connecter que si la partie existe
+      onAchievementsUnlocked: (achievements) => {
+        achievements.forEach(showAchievement)
+      },
     }
   )
 

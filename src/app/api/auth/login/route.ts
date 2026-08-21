@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/authServer'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { AUTH_COOKIE_NAME } from '@/lib/authRequest'
 
 // Par défaut: secure = true en production, false en dev.
 // Surchargable via AUTH_COOKIE_SECURE pour les environnements HTTP derrière Docker/proxy.
@@ -38,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const expires = new Date(Date.now() + expiresIn * 1000)
 
-    response.cookies.set(COOKIE_NAME, token, {
+    response.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       secure: COOKIE_SECURE,
       sameSite: 'lax',

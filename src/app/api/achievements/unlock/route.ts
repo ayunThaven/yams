@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 
-/**
- * Achievements are evaluated from trusted server-side game events only.
- */
-export function POST() {
+export async function POST() {
   return NextResponse.json(
-    { error: 'Les succès sont évalués par le serveur de jeu.' },
+    {
+      error:
+        'Endpoint supprimé: les succès sont débloqués par les actions serveur autorisées.',
+    },
     { status: 410 }
   )
 }
+
+

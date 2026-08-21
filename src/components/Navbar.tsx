@@ -6,6 +6,7 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/components/Providers"
 import { useGameProtection } from "@/contexts/GameProtectionContext"
+import { useFlashMessage } from "@/contexts/FlashMessageContext"
 import { tokenManager } from "@/lib/tokenManager"
 import { generateGameId } from "@/lib/gameIdGenerator"
 import { GameVariant } from "@/types/game"
@@ -16,6 +17,7 @@ import { useTheme } from "next-themes"
 
 export default function Navbar() {
   const { user, userProfile, refreshUserProfile } = useSupabase()
+  const { showAchievement } = useFlashMessage()
   const [loading, setLoading] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [joinCode, setJoinCode] = useState("")
@@ -128,6 +130,8 @@ export default function Navbar() {
         setCreateLoading(false)
         alert(`Erreur lors de la création de la partie: ${data.error || 'Erreur inconnue'}`)
       } else {
+        data.achievements?.forEach(showAchievement)
+
         setShowCreateModal(false)
         await new Promise((resolve) => setTimeout(resolve, 200))
         router.push(`/game/${id}`)

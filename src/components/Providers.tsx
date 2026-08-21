@@ -40,7 +40,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Créer le client Supabase une seule fois
   const supabase = useMemo(() => createClient(), [])
 
-  const readCachedAuthAndProfile = () => {
+  const readCachedAuthAndProfile = useCallback(() => {
     if (typeof window === 'undefined') return null
 
     try {
@@ -63,7 +63,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     } catch {
       return null
     }
-  }
+  }, [])
 
   const writeCachedAuthAndProfile = useCallback((nextUser: AuthUser | null, nextProfile: UserProfile | null) => {
     if (typeof window === 'undefined') return
@@ -129,7 +129,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [fetchAuthAndProfile])
+  }, [fetchAuthAndProfile, readCachedAuthAndProfile])
 
   return (
     <SupabaseContext.Provider value={{ user, userProfile, isLoading, refreshUserProfile, supabase }}>

@@ -2,6 +2,8 @@
 
 export type GameVariant = 'classic' | 'descending' | 'ascending'
 
+export type GameEndReason = 'completed' | 'abandon' | 'timeout' | 'server_interrupted'
+
 export type ScoreCategory = 
   | 'ones' | 'twos' | 'threes' | 'fours' | 'fives' | 'sixes'
   | 'threeOfKind' | 'fourOfKind' | 'fullHouse' 
@@ -62,5 +64,24 @@ export interface RollDiceAction {
 export interface ChooseScoreAction {
   roomId: string
   category: ScoreCategory
+}
+
+export interface PlayerResult {
+  gameId: string
+  userId: string
+  playerName: string
+  score: number
+  won: boolean
+  abandoned: boolean
+  yamsCount: number
+  xpGained: number
+  reason: GameEndReason
+}
+
+export interface PersistedGameResult {
+  gameId: string
+  winner: string | null
+  reason: GameEndReason
+  players: PlayerResult[]
 }
 
