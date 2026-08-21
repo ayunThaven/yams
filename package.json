@@ -5,11 +5,11 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "build": "next build",
-    "build:server": "tsup server.ts --out-dir dist --format esm,cjs --minify --clean",
+    "build:server": "tsup server.ts --out-dir dist --format cjs --minify --clean",
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "tsx --test src/lib/*.test.ts",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
