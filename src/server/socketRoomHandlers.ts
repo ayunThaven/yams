@@ -11,6 +11,7 @@ import { updateGameStatus } from './gameDbUtils'
 import { verifyGameExists, verifyNotAlreadyInWaitingRoom, verifyCanReconnectToGame, fetchUserAvatar } from './roomSecurityHelpers'
 import { handlePlayerReconnection } from './roomReconnectionHelpers'
 import { isValidRoomId } from './socketValidation'
+import { unlockActionAchievement } from './gameFinalization'
 
 type Player = { id: string; name: string; userId?: string; avatar?: string; ready?: boolean }
 type RoomState = { started: boolean }
@@ -202,6 +203,18 @@ export function setupRoomHandlers(
 
     // Rejoindre la room (seulement après toutes les vérifications)
     socket.join(roomId)
+
+    // The owner created the game; only another participant is joining it.
+    if (userId) {
+      const { data: game } = await supabase
+        .from('games')
+        .select('owner')
+        .eq('id', roomId)
+        .maybeSingle()
+      if (game && game.owner !== userId) {
+        await unlockActionAchievement(supabase, userId, 'join_game')
+      }
+    }
 
     // Initialiser le statut "prêt" à false pour les nouveaux joueurs
     socket.data.ready = false

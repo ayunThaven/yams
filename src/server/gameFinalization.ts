@@ -4,6 +4,7 @@ import { Achievement } from '@/types/achievement'
 import { GameState, PlayerGameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
 import { countYamsInScoreSheet } from '@/lib/userStats'
+import { getFinalizationAchievementIds } from './achievementRules'
 
 type PersistedResult = {
   user_id: string
@@ -12,6 +13,7 @@ type PersistedResult = {
   won: boolean
   abandoned: boolean
   yams_count: number
+  yams_faces: number[]
   score_sheet: PlayerGameState['scoreSheet']
 }
 
@@ -35,6 +37,7 @@ function toPersistedResults(gameState: GameState): PersistedResult[] {
       won: !player.abandoned && topScore !== null && player.totalScore === topScore,
       abandoned: player.abandoned,
       yams_count: countYamsInScoreSheet(player.scoreSheet),
+      yams_faces: player.yamsFaces ?? [],
       score_sheet: player.scoreSheet,
     }]
   })
@@ -81,38 +84,39 @@ async function unlockFinalizationAchievements(
     if (error || !profile) continue
 
     const userProfile = profile as UserProfile
-    const candidateIds = new Set<string>(['play_game'])
-
-    if (result.abandoned) candidateIds.add('give_up')
-    if (result.won) candidateIds.add('win_game')
-    if (result.yams_count > 0) candidateIds.add('yams')
-    if (result.score >= 200) candidateIds.add('score_200')
-    if (result.score >= 250) candidateIds.add('score_250')
-    if (result.score >= 300) candidateIds.add('score_300')
-    if (result.score === 375) candidateIds.add('perfect_game')
-    if (gameState.variant === 'ascending') candidateIds.add('variant_ascending')
-    if (gameState.variant === 'descending') candidateIds.add('variant_descending')
-    if (Object.values(result.score_sheet).slice(0, 6).reduce((sum, score) => sum + (score ?? 0), 0) >= 63) {
-      candidateIds.add('bonus')
-    }
-
-    for (const level of [5, 10, 20, 30, 33, 40, 50]) {
-      if (userProfile.level >= level) candidateIds.add(`level_${level}`)
-    }
-    for (const streak of [3, 5, 10]) {
-      if (userProfile.serie_victoires_actuelle >= streak) candidateIds.add(`streak_${streak}`)
-    }
-    if (userProfile.parties_jouees >= 10 && userProfile.parties_gagnees / userProfile.parties_jouees >= 0.75) {
-      candidateIds.add('champion')
-    }
+    const leaderboardRank = userProfile.parties_jouees >= 5
+      ? await getLeaderboardRank(supabase, result.user_id)
+      : null
+    const candidateIds = getFinalizationAchievementIds({
+      result,
+      profile: userProfile,
+      variant: gameState.variant,
+      leaderboardRank,
+    })
 
     const unlocked = await Promise.all(
-      [...candidateIds].map((achievementId) => unlockAchievement(supabase, result.user_id, achievementId))
+      candidateIds.map((achievementId) => unlockAchievement(supabase, result.user_id, achievementId))
     )
     unlockedByUser[result.user_id] = unlocked.filter((achievement): achievement is Achievement => achievement !== null)
   }
 
   return unlockedByUser
+}
+
+async function getLeaderboardRank(supabase: SupabaseClient, userId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('leaderboard')
+    .select('id')
+    .gte('parties_jouees', 5)
+    .order('taux_victoire', { ascending: false })
+    .order('serie_victoires_actuelle', { ascending: false })
+    .order('parties_jouees', { ascending: false })
+    .order('nombre_yams_realises', { ascending: false })
+    .limit(5)
+
+  if (error || !data) return null
+  const index = data.findIndex((row) => row.id === userId)
+  return index === -1 ? null : index + 1
 }
 
 export async function finalizeGame(

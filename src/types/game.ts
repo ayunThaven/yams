@@ -40,6 +40,8 @@ export interface PlayerGameState {
   scoreSheet: ScoreSheet
   totalScore: number
   abandoned: boolean
+  /** Faces obtained when all five dice matched during this game. */
+  yamsFaces?: number[]
 }
 
 export interface GameState {
