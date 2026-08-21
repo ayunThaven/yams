@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwtToken, getUserProfileById } from '@/lib/authServer'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { AUTH_COOKIE_NAME } from '@/lib/authRequest'
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get(COOKIE_NAME)?.value
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
 
   if (!token) {
     return NextResponse.json({ user: null, profile: null }, { status: 200 })

@@ -8,10 +8,13 @@ import { GameVariant } from '@/types/game'
 import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from '@/lib/variantLogic'
 import PlusIcon from './icons/PlusIcon'
 import { api } from '@/lib/apiClient'
+import { useFlashMessage } from '@/contexts/FlashMessageContext'
+import { Achievement } from '@/types/achievement'
 
 export default function CreateGame() {
   const router = useRouter()
   const { user } = useSupabase()
+  const { showAchievement } = useFlashMessage()
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [selectedVariant, setSelectedVariant] = useState<GameVariant>('classic')
@@ -29,7 +32,10 @@ export default function CreateGame() {
     const id = generateGameId()
 
     try {
-      const { error } = await api.post<{ game: { id: string } }>('/api/games', {
+      const { data, error } = await api.post<{
+        game: { id: string }
+        achievements?: Achievement[]
+      }>('/api/games', {
         id,
         variant: selectedVariant,
       })
@@ -39,6 +45,8 @@ export default function CreateGame() {
         setLoading(false)
         alert(`Erreur lors de la création de la partie: ${error || 'Erreur inconnue'}`)
       } else {
+        data?.achievements?.forEach(showAchievement)
+
         setShowModal(false)
         await new Promise(resolve => setTimeout(resolve, 200))
         router.push(`/game/${id}`)
