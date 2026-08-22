@@ -7,7 +7,7 @@ import { Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { getGameState, handleTimerExpired, startTurnTimer } from './gameManager'
 import { getCategoryLabel } from '../lib/categoryLabels'
-import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
+import { emitUnlockedAchievements, saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
 
 /**
  * Gère l'expiration du timer et redémarre le timer suivant
@@ -37,6 +37,7 @@ export async function handleTimerExpiredAndRestart(
       io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
       return
     }
+    emitUnlockedAchievements(io, updatedGameState, persisted.achievements)
 
     io.to(roomId).emit('game_ended', {
       winner: updatedGameState.winner,

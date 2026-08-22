@@ -1,8 +1,16 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { Server } from 'socket.io'
 
 import { GameState } from '../types/game'
+import { Achievement } from '../types/achievement'
 import { finalizeGame } from './gameFinalization'
 import { GameRepository } from './gameRepository'
+
+export type FinishedGameUpdateResult = {
+  success: boolean
+  achievements: Record<string, Achievement[]>
+  error?: string
+}
 
 /**
  * Records a completed game exactly once. The database function owns result
@@ -12,9 +20,13 @@ export async function updateFinishedGame(
   supabase: SupabaseClient,
   roomId: string,
   gameState: GameState
-): Promise<{ success: boolean; error?: string }> {
+): Promise<FinishedGameUpdateResult> {
   if (gameState.roomId !== roomId) {
-    return { success: false, error: 'Game state does not match the requested room.' }
+    return {
+      success: false,
+      achievements: {},
+      error: 'Game state does not match the requested room.',
+    }
   }
 
   try {
@@ -25,7 +37,23 @@ export async function updateFinishedGame(
     return result
   } catch (error) {
     console.error('[DB] Unexpected game finalization error:', error)
-    return { success: false, error: String(error) }
+    return { success: false, achievements: {}, error: String(error) }
+  }
+}
+
+/** Sends newly unlocked achievements only to the player who earned them. */
+export function emitUnlockedAchievements(
+  io: Server,
+  gameState: GameState,
+  achievementsByUser: Record<string, Achievement[]>
+): void {
+  for (const player of gameState.players) {
+    if (!player.userId) continue
+
+    const achievements = achievementsByUser[player.userId]
+    if (!achievements?.length) continue
+
+    io.to(player.id).emit('achievements_unlocked', achievements)
   }
 }
 

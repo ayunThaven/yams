@@ -9,7 +9,7 @@ import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './g
 import { ScoreCategory } from '../types/game'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
-import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
+import { emitUnlockedAchievements, saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
 import { isScoreCategory, isValidDieIndex, isValidRoomId } from './socketValidation'
 
 /**
@@ -143,6 +143,7 @@ export function setupGameHandlers(
           socket.emit('error', { message: 'Impossible de finaliser la partie.' })
           return
         }
+        emitUnlockedAchievements(io, gameState, persisted.achievements)
 
         io.to(roomId).emit('game_ended', {
           winner: gameState.winner,
@@ -216,6 +217,7 @@ export function setupGameHandlers(
         socket.emit('error', { message: 'Impossible de finaliser la partie.' })
         return
       }
+      emitUnlockedAchievements(io, updatedGame, persisted.achievements)
 
       io.to(roomId).emit('game_update', updatedGame)
       io.to(roomId).emit('game_ended', {
