@@ -69,7 +69,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await unlockActionAchievement(supabase, authUser.id, 'create_game')
+    // All current games are private and can only be joined with their code.
+    await Promise.all([
+      unlockActionAchievement(supabase, authUser.id, 'create_game'),
+      unlockActionAchievement(supabase, authUser.id, 'create_private_game'),
+    ])
 
     return NextResponse.json(
       {

@@ -427,6 +427,12 @@ INSERT INTO public.achievements (id, name, description, image_path, rarity, cate
 ('bug_finder',  'Bug finder',     'Trouvez un bug',                                                      '/images/achievements/Crystal/Medals_BugFinder_Text.webp',    'Crystal', 'special')
 ON CONFLICT (id) DO NOTHING;
 
+-- Ces succès correspondent à des fonctionnalités qui ne sont pas disponibles.
+-- Ils restent dans le catalogue pour une éventuelle réactivation future.
+UPDATE public.achievements
+SET is_active = FALSE
+WHERE id IN ('all_in_one', 'win_all_in_one', 'friend_1');
+
 
 -- =====================================================
 -- 10. Commentaires
