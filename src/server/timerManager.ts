@@ -9,7 +9,7 @@ import { getGameState } from './gameStateManager'
 const turnTimers = new Map<string, { timeout: NodeJS.Timeout; interval: NodeJS.Timeout }>()
 
 // Durée du timer en secondes
-const TURN_DURATION = 90
+export const TURN_DURATION = 90
 
 /**
  * Nettoie les timers d'une partie
@@ -43,7 +43,8 @@ export function clearAllTimers(): void {
 export function startTurnTimer(
   roomId: string,
   onTimerExpired: () => void,
-  onTimerUpdate: (timeLeft: number) => void
+  onTimerUpdate: (timeLeft: number) => void,
+  expiresAt?: number
 ): void {
   // Nettoyer le timer précédent s'il existe
   clearTurnTimer(roomId)
@@ -52,8 +53,10 @@ export function startTurnTimer(
   if (!game) return
   
   // Initialiser le temps de début
-  game.turnStartTime = Date.now()
-  game.turnTimeLeft = TURN_DURATION
+  const now = Date.now()
+  const remaining = expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : TURN_DURATION
+  game.turnStartTime = now
+  game.turnTimeLeft = remaining
   
   // Mettre à jour chaque seconde
   const interval = setInterval(() => {
@@ -64,7 +67,7 @@ export function startTurnTimer(
     }
     
     const elapsed = Math.floor((Date.now() - (game.turnStartTime || 0)) / 1000)
-    const timeLeft = Math.max(0, TURN_DURATION - elapsed)
+    const timeLeft = Math.max(0, remaining - elapsed)
     game.turnTimeLeft = timeLeft
     
     onTimerUpdate(timeLeft)
@@ -74,7 +77,7 @@ export function startTurnTimer(
   const timeout = setTimeout(() => {
     clearTurnTimer(roomId)
     onTimerExpired()
-  }, TURN_DURATION * 1000)
+  }, remaining * 1000)
   
   turnTimers.set(roomId, { timeout, interval })
 }

@@ -4,7 +4,6 @@
  */
 
 import { logger } from '@/lib/logger'
-import { tokenManager } from '@/lib/tokenManager'
 import { UserProfile } from '@/types/user'
 
 /**
@@ -29,15 +28,6 @@ export async function fetchUsername(
  * Récupère le token d'authentification
  * Utilise le token applicatif stocké en localStorage
  */
-export async function fetchAuthToken(): Promise<string | null> {
-  const token = tokenManager.getToken()
-  if (!token || tokenManager.isTokenExpired()) {
-    logger.error('Token applicatif absent ou expiré')
-    return null
-  }
-  return token
-}
-
 /**
  * Récupère l'ID de session serveur depuis localStorage
  * Retourne null si la valeur est absente ou vide

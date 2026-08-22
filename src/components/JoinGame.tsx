@@ -7,15 +7,17 @@ export default function JoinGame() {
   const router = useRouter()
   const [gameId, setGameId] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleJoin = async () => {
     if (!gameId.trim()) {
-      alert('Veuillez entrer un code de partie valide.')
+      setError('Veuillez entrer un code de partie valide.')
       return
     }
 
     // Activer le loading IMMÉDIATEMENT
     setLoading(true)
+    setError(null)
     
     // Petit délai pour garantir que React affiche le loading avant la redirection
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -57,13 +59,16 @@ export default function JoinGame() {
   }
 
   return (
-    <div className="flex items-center gap-0 w-full max-w-md">
+    <div className="w-full max-w-md">
+      {error && <p className="text-error text-sm mb-2" role="alert">{error}</p>}
+      <div className="flex items-center gap-0">
       <button
         type="button"
         className="input input-bordered rounded-r-none w-10 px-0 flex items-center justify-center cursor-pointer hover:bg-base-200 transition-colors input-no-focus"
         onClick={handlePaste}
         disabled={loading}
         title="Coller le code de la partie"
+        aria-label="Coller le code de la partie"
       >
         📋
       </button>
@@ -91,6 +96,7 @@ export default function JoinGame() {
           </>
         )}
       </button>
+      </div>
     </div>
   )
 }

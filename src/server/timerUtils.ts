@@ -5,9 +5,9 @@
 
 import { Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { handleTimerExpired, startTurnTimer } from './gameManager'
+import { getGameState, handleTimerExpired, startTurnTimer } from './gameManager'
 import { getCategoryLabel } from '../lib/categoryLabels'
-import { finalizeGame } from './gameFinalizationService'
+import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
 
 /**
  * Gère l'expiration du timer et redémarre le timer suivant
@@ -32,12 +32,16 @@ export async function handleTimerExpiredAndRestart(
   
   // Si la partie est terminée
   if (updatedGameState.gameStatus === 'finished') {
-    await finalizeGame({
-      io,
-      supabase,
-      roomId,
-      gameState: updatedGameState,
+    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState)
+    if (!persisted.success) {
+      io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
+      return
+    }
+
+    io.to(roomId).emit('game_ended', {
+      winner: updatedGameState.winner,
       reason: 'timeout',
+      message: `${updatedGameState.winner} remporte la partie !`,
     })
   } else {
     // Redémarrer le timer pour le joueur suivant
@@ -52,6 +56,7 @@ export async function handleTimerExpiredAndRestart(
       },
       (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
     )
+    await saveGameSnapshot(supabase, updatedGameState)
   }
 }
 
@@ -59,17 +64,19 @@ export async function handleTimerExpiredAndRestart(
  * Démarre le timer pour un nouveau tour
  * Centralise la logique commune d'initialisation du timer
  */
-export function startTurnTimerWithCallbacks(
+export async function startTurnTimerWithCallbacks(
   io: Server,
   supabase: SupabaseClient,
-  roomId: string
-): void {
+  roomId: string,
+  expiresAt?: number
+): Promise<void> {
   startTurnTimer(
     roomId,
-    () => {
-      void handleTimerExpiredAndRestart(io, supabase, roomId)
-    },
-    (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
+    () => void handleTimerExpiredAndRestart(io, supabase, roomId),
+    (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft),
+    expiresAt
   )
+  const gameState = getGameState(roomId)
+  if (gameState) await saveGameSnapshot(supabase, gameState)
 }
 

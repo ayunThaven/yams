@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { registerUser } from '@/lib/authServer'
 import { sendConfirmationEmail } from '@/lib/emailSender'
+import { allowAuthAttempt } from '@/lib/authRateLimit'
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(request: NextRequest) {
   try {
+    if (!await allowAuthAttempt(request, 'register')) {
+      return NextResponse.json({ error: 'Trop de tentatives. Réessaie plus tard.' }, { status: 429 })
+    }
+
     const body = await request.json()
     const { email, password, username } = body as {
       email?: string
@@ -11,7 +18,7 @@ export async function POST(request: NextRequest) {
       username?: string
     }
 
-    if (!email || !password || !username) {
+    if (!email || !password || !username || !EMAIL.test(email) || username.trim().length < 3 || username.length > 32) {
       return NextResponse.json(
         { error: 'Email, mot de passe et nom d’utilisateur sont requis.' },
         { status: 400 }

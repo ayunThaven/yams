@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { token, password } = body as { token?: string; password?: string }
 
-    if (!token || !password) {
+    if (!token || !password || typeof token !== 'string' || typeof password !== 'string' || token.length > 512) {
       return NextResponse.json(
         { error: 'Token et nouveau mot de passe sont requis.' },
         { status: 400 }

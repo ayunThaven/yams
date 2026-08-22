@@ -22,6 +22,10 @@ export function setGameState(roomId: string, gameState: GameState): void {
   games.set(roomId, gameState)
 }
 
+export function restoreGameState(gameState: GameState): void {
+  games.set(gameState.roomId, gameState)
+}
+
 /**
  * Supprime une partie
  */
