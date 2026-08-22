@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { tokenManager } from '@/lib/tokenManager'
 import { useSupabase } from '@/components/Providers'
 
 export default function LoginPage() {
@@ -51,10 +50,6 @@ export default function LoginPage() {
       if (!response.ok) {
         setMessage(`❌ ${data.error || 'Erreur lors de la connexion.'}`)
         return
-      }
-
-      if (data.token && data.expiresIn) {
-        tokenManager.setToken(data.token, data.expiresIn)
       }
 
       // Rafraîchir le contexte d'authentification (Navbar, dashboard, etc.)

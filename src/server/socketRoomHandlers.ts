@@ -10,8 +10,8 @@ import { startTurnTimerWithCallbacks } from './timerUtils'
 import { updateGameStatus } from './gameDbUtils'
 import { verifyGameExists, verifyNotAlreadyInWaitingRoom, verifyCanReconnectToGame, fetchUserAvatar } from './roomSecurityHelpers'
 import { handlePlayerReconnection } from './roomReconnectionHelpers'
-import { unlockAchievementsForUser } from './achievementService'
-import { parseMaxPlayers, parseRoomId } from '@/lib/validation'
+import { isValidRoomId } from './socketValidation'
+import { unlockActionAchievement } from './gameFinalization'
 
 type Player = { id: string; name: string; userId?: string; avatar?: string; ready?: boolean }
 type RoomState = { started: boolean }
@@ -36,6 +36,10 @@ function getPlayersInRoom(io: Server, roomId: string): Player[] {
       ready: s?.data?.ready || false,
     }
   })
+}
+
+function isRoomMember(socket: Socket, roomId: string): boolean {
+  return socket.rooms.has(roomId)
 }
 
 /**
@@ -83,7 +87,7 @@ export function setupRoomHandlers(
     const gameState = initializeGame(roomId, players, variant)
 
     // Mettre à jour le status dans la base de données
-    await updateGameStatus(supabase, roomId, 'in_progress')
+    updateGameStatus(supabase, roomId, 'in_progress')
 
     // Émettre l'événement de démarrage
     io.to(roomId).emit('game_started', gameState)
@@ -102,13 +106,11 @@ export function setupRoomHandlers(
   /**
    * Rejoindre une room
    */
-  socket.on('join_room', async (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('join_room', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-
     // Vérifier que l'utilisateur est authentifié
     if (!socket.data.authenticated) {
       socket.emit('error', { message: 'Non authentifié' })
@@ -118,19 +120,6 @@ export function setupRoomHandlers(
     // SÉCURITÉ : Vérifier que la partie existe dans la base de données
     const gameExists = await verifyGameExists(supabase, roomId, socket)
     if (!gameExists) return
-
-    const { data: gameMeta, error: gameMetaError } = await supabase
-      .from('games')
-      .select('status, max_players, owner')
-      .eq('id', roomId)
-      .single()
-
-    if (gameMetaError || !gameMeta) {
-      socket.emit('game_not_found', {
-        message: 'Cette partie n\'existe pas ou a été supprimée.',
-      })
-      return
-    }
 
     // Utiliser le username authentifié
     const playerName = socket.data.username
@@ -149,8 +138,20 @@ export function setupRoomHandlers(
     
     // Si roomState n'existe pas, vérifier le statut dans la base de données
     if (!roomState) {
-      // La partie est en cours ou terminée si le statut n'est pas 'waiting'
-      isGameStarted = gameMeta.status !== 'waiting'
+      try {
+        const { data: gameData } = await supabase
+          .from('games')
+          .select('status')
+          .eq('id', roomId)
+          .single()
+        
+        if (gameData) {
+          // La partie est en cours ou terminée si le statut n'est pas 'waiting'
+          isGameStarted = gameData.status !== 'waiting'
+        }
+      } catch (err) {
+        console.error('[ROOM] Erreur vérification statut partie:', err)
+      }
     }
 
     // SÉCURITÉ : Vérifier avant de rejoindre la room
@@ -161,8 +162,14 @@ export function setupRoomHandlers(
       
       // Vérifier la capacité AVANT de rejoindre pour éviter de compter le socket actuel
       try {
-        if (gameMeta.max_players) {
-          const maxPlayers = gameMeta.max_players
+        const { data: gameData } = await supabase
+          .from('games')
+          .select('max_players, owner')
+          .eq('id', roomId)
+          .single()
+
+        if (gameData && gameData.max_players) {
+          const maxPlayers = gameData.max_players
           
           // Récupérer les joueurs dans la room AVANT de rejoindre
           const playersBeforeJoin = getPlayersInRoom(io, roomId)
@@ -197,6 +204,18 @@ export function setupRoomHandlers(
     // Rejoindre la room (seulement après toutes les vérifications)
     socket.join(roomId)
 
+    // The owner created the game; only another participant is joining it.
+    if (userId) {
+      const { data: game } = await supabase
+        .from('games')
+        .select('owner')
+        .eq('id', roomId)
+        .maybeSingle()
+      if (game && game.owner !== userId) {
+        await unlockActionAchievement(supabase, userId, 'join_game')
+      }
+    }
+
     // Initialiser le statut "prêt" à false pour les nouveaux joueurs
     socket.data.ready = false
 
@@ -213,29 +232,31 @@ export function setupRoomHandlers(
         started: false,
       })
       io.to(roomId).emit('system_message', `${playerName} a rejoint la partie`)
-
-      if (userId && gameMeta.owner && userId !== gameMeta.owner) {
-        const achievements = await unlockAchievementsForUser(supabase, userId, ['join_game'])
-        if (achievements.length > 0) {
-          socket.emit('achievements_unlocked', achievements)
-        }
-      }
     }
   })
 
   /**
    * Mettre à jour le nombre maximum de joueurs (owner seulement)
    */
-  socket.on('update_max_players', async (payload: { roomId: string; maxPlayers: number }) => {
-    const roomId = parseRoomId(payload?.roomId)
-    const maxPlayers = parseMaxPlayers(payload?.maxPlayers)
-    if (!roomId || maxPlayers === null) {
-      socket.emit('error', { message: 'Le nombre de joueurs doit être entre 2 et 8.' })
+  socket.on('update_max_players', async ({ roomId, maxPlayers }: { roomId: string; maxPlayers: number }) => {
+    if (!isValidRoomId(roomId) || !Number.isInteger(maxPlayers)) {
+      socket.emit('error', { message: 'Paramètres de partie invalides.' })
+      return
+    }
+
+    if (!isRoomMember(socket, roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
     if (!socket.data.authenticated) {
       socket.emit('error', { message: 'Non authentifié' })
+      return
+    }
+
+    // Vérifier que maxPlayers est valide
+    if (maxPlayers < 2 || maxPlayers > 8) {
+      socket.emit('error', { message: 'Le nombre de joueurs doit être entre 2 et 8.' })
       return
     }
 
@@ -295,14 +316,12 @@ export function setupRoomHandlers(
   /**
    * Marquer un joueur comme prêt ou non prêt (toggle)
    */
-  socket.on('player_ready', (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('player_ready', (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-
-    if (!socket.data.authenticated) {
+    if (!socket.data.authenticated || !isRoomMember(socket, roomId)) {
       socket.emit('error', { message: 'Non authentifié' })
       return
     }
@@ -331,10 +350,29 @@ export function setupRoomHandlers(
   /**
    * Lancer un compte à rebours avant le début de la partie
    */
-  socket.on('start_countdown', (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('start_countdown', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !isRoomMember(socket, roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
+    const { data: gameData, error: gameError } = await supabase
+      .from('games')
+      .select('owner, status')
+      .eq('id', roomId)
+      .single()
+
+    if (gameError || !gameData || gameData.status !== 'waiting') {
+      socket.emit('error', { message: 'Cette partie ne peut pas être démarrée.' })
+      return
+    }
+
+    if (gameData.owner !== socket.data.userId) {
+      socket.emit('error', { message: 'Seul l\'hôte peut démarrer la partie.' })
       return
     }
 
@@ -355,7 +393,7 @@ export function setupRoomHandlers(
 
     // Vérifier que tous les joueurs (sauf l'hôte) sont prêts
     // L'hôte est le premier joueur dans la liste
-    const nonHostPlayers = players.slice(1)
+    const nonHostPlayers = players.filter((player) => player.userId !== gameData.owner)
     const allNonHostReady = nonHostPlayers.length > 0 && nonHostPlayers.every(p => p.ready === true)
 
     if (!allNonHostReady) {
@@ -402,13 +440,15 @@ export function setupRoomHandlers(
   /**
    * Quitter une room (avant que la partie démarre)
    */
-  socket.on('leave_room', (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('leave_room', (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-
+    if (!socket.data.authenticated || !isRoomMember(socket, roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
     const playerName = socket.data.playerName || 'Un joueur'
 
     // Réinitialiser le statut prêt
@@ -439,11 +479,6 @@ export function setupRoomHandlers(
       }
     }
 
-    // Si c'était l'hôte et qu'il reste des joueurs, notifier le transfert
-    if (players.length > 0) {
-      const newHost = players[0]
-      io.to(roomId).emit('system_message', `${newHost.name} est maintenant l'hôte`)
-    }
   })
 }
 

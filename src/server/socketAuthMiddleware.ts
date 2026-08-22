@@ -6,6 +6,15 @@
 import { Socket } from 'socket.io'
 import { verifyToken, getUsernameFromId } from './authMiddleware'
 
+const AUTH_COOKIE_NAME = 'yams_auth_token'
+
+function readCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null
+  const prefix = `${name}=`
+  const entry = cookieHeader.split(';').map((item) => item.trim()).find((item) => item.startsWith(prefix))
+  return entry ? decodeURIComponent(entry.slice(prefix.length)) : null
+}
+
 /**
  * Middleware d'authentification Socket.IO
  * @param serverRestartId - ID unique du serveur pour détecter les redémarrages
@@ -26,7 +35,7 @@ export function createAuthMiddleware(serverRestartId: string) {
       socket.data.serverRestarted = serverRestarted
 
       // Extraire le token des handshake auth ou query
-      const token = socket.handshake.auth.token || socket.handshake.query.token
+      const token = readCookie(socket.handshake.headers.cookie, AUTH_COOKIE_NAME)
 
       if (!token) {
         console.error('[SOCKET] Connexion refusée: Token manquant')

@@ -4,7 +4,7 @@ import { GameState, ScoreCategory, GameVariant, ScoreSheet } from '../types/game
 import { calculateScore, calculateTotalScore, createEmptyScoreSheet, isScoreSheetComplete } from '../lib/yamsLogic'
 import { canChooseCategory } from '../lib/variantLogic'
 import { createDice, rollUnlockedDice } from './diceManager'
-import { getGameState, setGameState, deleteGameState, clearAllGames as clearAllGameStates } from './gameStateManager'
+import { getGameState, setGameState, deleteGameState, clearAllGames as clearAllGameStates, restoreGameState } from './gameStateManager'
 import { startTurnTimer, clearTurnTimer, clearAllTimers } from './timerManager'
 
 /**
@@ -17,6 +17,7 @@ export function clearAllGames(): void {
 
 // Ré-exporter pour compatibilité
 export { getGameState, startTurnTimer, clearTurnTimer }
+export { restoreGameState }
 
 /**
  * Met à jour le socket.id d'un joueur (reconnexion)
@@ -54,6 +55,7 @@ export function initializeGame(
       scoreSheet: createEmptyScoreSheet(),
       totalScore: 0,
       abandoned: false,
+      yamsFaces: [],
     })),
     currentPlayerIndex: 0,
     dice: createDice(),
@@ -154,6 +156,14 @@ export function chooseScore(
   const score = calculateScore(category, diceValues)
   currentPlayer.scoreSheet[category] = score
   currentPlayer.totalScore = calculateTotalScore(currentPlayer.scoreSheet)
+
+  const yamsFace = diceValues.every((value) => value === diceValues[0]) ? diceValues[0] : null
+  if (yamsFace !== null && yamsFace >= 1 && yamsFace <= 6) {
+    currentPlayer.yamsFaces ??= []
+    if (!currentPlayer.yamsFaces.includes(yamsFace)) {
+      currentPlayer.yamsFaces.push(yamsFace)
+    }
+  }
   
   
   // Passer au joueur suivant actif (non-abandonné)

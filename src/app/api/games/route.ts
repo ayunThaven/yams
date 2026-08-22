@@ -1,23 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { verifyJwtToken } from '@/lib/authServer'
 import { generateGameId } from '@/lib/gameIdGenerator'
-import { requireAuth } from '@/lib/authRequest'
-import { parseCreateGameBody } from '@/lib/validation'
-import { unlockAchievementsForUser } from '@/server/achievementService'
+import { unlockActionAchievement } from '@/server/gameFinalization'
+
+const COOKIE_NAME = 'yams_auth_token'
+const GAME_ID = /^[A-HJ-NP-Z2-9]{8}$/
+const VARIANTS = new Set(['classic', 'ascending', 'descending'])
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAuth(request)
-    if (auth.response) return auth.response
+    const token = request.cookies.get(COOKIE_NAME)?.value
+
+    const authUser = token ? verifyJwtToken(token) : null
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Non authentifié.' },
+        { status: 401 }
+      )
+    }
 
     const body = await request.json().catch(() => ({}))
-    const parsedBody = parseCreateGameBody(body)
+    const { variant, id: providedId } = body as {
+      variant?: string
+      id?: string
+    }
 
-    if (!parsedBody) {
+    if (!variant || !VARIANTS.has(variant)) {
       return NextResponse.json(
-        { error: 'Payload de création de partie invalide.' },
+        { error: 'La variante de jeu est invalide.' },
         { status: 400 }
       )
+    }
+
+    if (providedId && !GAME_ID.test(providedId)) {
+      return NextResponse.json({ error: 'Identifiant de partie invalide.' }, { status: 400 })
     }
 
     const supabase = createAdminClient()
@@ -28,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const id = parsedBody.id || generateGameId()
+    const id = providedId || generateGameId()
 
     const { data, error } = await supabase
       .from('games')
@@ -36,8 +53,8 @@ export async function POST(request: NextRequest) {
         {
           id,
           status: 'waiting',
-          owner: auth.user.id,
-          variant: parsedBody.variant,
+          owner: authUser.id,
+          variant,
           created_at: new Date().toISOString(),
         },
       ])
@@ -52,12 +69,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const achievements = await unlockAchievementsForUser(supabase, auth.user.id, ['create_game'])
+    // All current games are private and can only be joined with their code.
+    await Promise.all([
+      unlockActionAchievement(supabase, authUser.id, 'create_game'),
+      unlockActionAchievement(supabase, authUser.id, 'create_private_game'),
+    ])
 
     return NextResponse.json(
       {
         game: data,
-        achievements,
       },
       { status: 201 }
     )

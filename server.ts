@@ -17,6 +17,9 @@ import next from 'next'
 import { Server as IOServer } from 'socket.io'
 import { createAdminClient } from './src/lib/supabase/admin'
 import { clearAllGames } from './src/server/gameManager'
+import { restoreGameState } from './src/server/gameManager'
+import { GameRepository } from './src/server/gameRepository'
+import { startTurnTimerWithCallbacks } from './src/server/timerUtils'
 import { createAuthMiddleware } from './src/server/socketAuthMiddleware'
 import { setupRoomHandlers } from './src/server/socketRoomHandlers'
 import { setupGameHandlers } from './src/server/socketGameHandlers'
@@ -38,39 +41,12 @@ const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 /**
- * Nettoyage au démarrage du serveur
- * Marque les parties en cours comme interrompues
+ * Reset in-memory resources only. Active games are restored from snapshots.
  */
 async function cleanupOnStartup() {
   // Nettoyer les gestionnaires de jeu en mémoire
   clearAllGames()
 
-  // Vérifier que supabase est disponible
-  if (!supabase) {
-    console.warn('[SERVER] Supabase non disponible, impossible de marquer les parties')
-    return
-  }
-
-  // Marquer les parties en cours comme interrompues dans la base de données
-  try {
-    const { data, error } = await supabase
-      .from('games')
-      .update({
-        status: 'server_interrupted',
-        winner: null,
-      })
-      .eq('status', 'in_progress')
-      .select()
-
-    if (error) {
-      console.error('[SERVER] Erreur lors du marquage des parties:', error)
-    } else if (data && data.length > 0) {
-      // Information uniquement en cas de parties réellement impactées
-      // (laissé silencieux pour éviter le bruit en console)
-    }
-  } catch (err) {
-    console.error('[SERVER] Erreur lors de la vérification des parties:', err)
-  }
 }
 
 /**
@@ -95,11 +71,6 @@ app.prepare().then(async () => {
   // Initialiser Socket.IO
   const io = new IOServer(server, {
     path: '/api/socket',
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
     // Configuration pour Docker/production
     pingTimeout: 60000, // 60s avant de considérer la connexion morte
     pingInterval: 25000, // Ping toutes les 25s pour maintenir la connexion
@@ -118,6 +89,19 @@ app.prepare().then(async () => {
     console.error('[SERVER] ERREUR CRITIQUE: Supabase non disponible')
     console.error('[SERVER] Vérifiez vos variables d\'environnement SUPABASE_SERVICE_ROLE_KEY')
     process.exit(1)
+  }
+
+  try {
+    const snapshots = await new GameRepository(supabase).loadActive()
+    for (const snapshot of snapshots) {
+      restoreGameState(snapshot.state)
+      roomStates.set(snapshot.gameId, { started: snapshot.state.gameStatus === 'playing' })
+      if (snapshot.state.gameStatus === 'playing') {
+        void startTurnTimerWithCallbacks(io, supabase, snapshot.gameId, snapshot.turnExpiresAt ?? undefined)
+      }
+    }
+  } catch (error) {
+    console.error('[SERVER] Impossible de restaurer les parties actives:', error)
   }
 
   // Gestionnaires de connexion Socket.IO

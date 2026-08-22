@@ -2,14 +2,12 @@
 
 import { useRouter } from 'next/navigation'
 import { useSupabase } from '@/components/Providers'
-import { generateGameId } from '@/lib/gameIdGenerator'
 import { useState } from 'react'
 import { GameVariant } from '@/types/game'
 import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from '@/lib/variantLogic'
 import PlusIcon from './icons/PlusIcon'
-import { api } from '@/lib/apiClient'
+import { createGame } from '@/lib/createGame'
 import { useFlashMessage } from '@/contexts/FlashMessageContext'
-import { Achievement } from '@/types/achievement'
 
 export default function CreateGame() {
   const router = useRouter()
@@ -18,6 +16,7 @@ export default function CreateGame() {
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [selectedVariant, setSelectedVariant] = useState<GameVariant>('classic')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleCreate = async () => {
     if (!user) {
@@ -25,28 +24,20 @@ export default function CreateGame() {
     }
 
     setLoading(true)
+    setErrorMessage(null)
     
     // Petit délai pour garantir que React affiche le loading avant l'opération async
     await new Promise(resolve => setTimeout(resolve, 50))
     
-    const id = generateGameId()
-
     try {
-      const { data, error } = await api.post<{
-        game: { id: string }
-        achievements?: Achievement[]
-      }>('/api/games', {
-        id,
-        variant: selectedVariant,
-      })
+      const { id, error, achievements } = await createGame(selectedVariant)
 
       if (error) {
         console.error('[CREATE] ❌ Erreur API:', error)
         setLoading(false)
-        alert(`Erreur lors de la création de la partie: ${error || 'Erreur inconnue'}`)
+        setErrorMessage(error || 'Erreur inconnue')
       } else {
-        data?.achievements?.forEach(showAchievement)
-
+        achievements.forEach(showAchievement)
         setShowModal(false)
         await new Promise(resolve => setTimeout(resolve, 200))
         router.push(`/game/${id}`)
@@ -54,7 +45,7 @@ export default function CreateGame() {
     } catch (err) {
       console.error('[CREATE] ❌ Exception:', err)
       setLoading(false)
-      alert('Erreur inattendue lors de la création de la partie')
+      setErrorMessage('Erreur inattendue lors de la création de la partie')
     }
   }
 
@@ -79,6 +70,7 @@ export default function CreateGame() {
         <div className="modal modal-open">
           <div className="modal-box card-bordered max-w-2xl">
             <h3 className="font-bold text-2xl mb-6">Choisir une variante</h3>
+            {errorMessage && <div className="alert alert-error mb-4" role="alert">{errorMessage}</div>}
             
             <div className="space-y-4">
               {/* Variante Classique */}

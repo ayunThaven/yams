@@ -6,7 +6,6 @@ import { Socket } from 'socket.io-client'
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { logger } from '@/lib/logger'
 import { clearServerRestartId } from './socketHelpers'
-import { tokenManager } from '@/lib/tokenManager'
 
 /**
  * Gère la reconnexion automatique après un redémarrage serveur
@@ -35,14 +34,6 @@ export async function handleServerRestart(
   }
 
   try {
-    // Vérifier que le token applicatif est encore valide
-    if (!tokenManager.isTokenValid()) {
-      logger.error('Session expirée après redémarrage serveur')
-      alert('Le serveur a redémarré et votre session a expiré. Veuillez vous reconnecter.')
-      router.push('/login')
-      return true
-    }
-
     // Attendre un peu pour laisser le serveur se stabiliser
     await new Promise((resolve) => setTimeout(resolve, 1000))
 

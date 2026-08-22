@@ -9,8 +9,8 @@ import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './g
 import { ScoreCategory } from '../types/game'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
-import { finalizeGame, recordPlayerAbandon } from './gameFinalizationService'
-import { isScoreCategory, parseDieIndex, parseRoomId } from '@/lib/validation'
+import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
+import { isScoreCategory, isValidDieIndex, isValidRoomId } from './socketValidation'
 
 /**
  * Configure les gestionnaires d'événements pour le jeu
@@ -24,10 +24,13 @@ export function setupGameHandlers(
   /**
    * Lancer les dés
    */
-  socket.on('roll_dice', (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('roll_dice', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
@@ -44,6 +47,10 @@ export function setupGameHandlers(
     
     const gameState = rollDice(roomId, playerId)
     if (gameState) {
+      if (!await saveGameSnapshot(supabase, gameState)) {
+        socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+        return
+      }
       // Signaler à tous les joueurs qu'un lancer a eu lieu (pour l'animation)
       io.to(roomId).emit('dice_rolled')
       
@@ -56,11 +63,13 @@ export function setupGameHandlers(
    */
   socket.on(
     'toggle_die_lock',
-    (payload: { roomId: string; dieIndex: number }) => {
-      const roomId = parseRoomId(payload?.roomId)
-      const dieIndex = parseDieIndex(payload?.dieIndex)
-      if (!roomId || dieIndex === null) {
-        socket.emit('error', { message: 'Action de dé invalide.' })
+    async ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
+      if (!isValidRoomId(roomId) || !isValidDieIndex(dieIndex)) {
+        socket.emit('error', { message: 'Action de jeu invalide.' })
+        return
+      }
+      if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+        socket.emit('error', { message: 'Accès à la partie refusé.' })
         return
       }
 
@@ -77,6 +86,10 @@ export function setupGameHandlers(
       
       const gameState = toggleDieLock(roomId, playerId, dieIndex)
       if (gameState) {
+        if (!await saveGameSnapshot(supabase, gameState)) {
+          socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+          return
+        }
         io.to(roomId).emit('game_update', gameState)
       }
     }
@@ -85,11 +98,13 @@ export function setupGameHandlers(
   /**
    * Choisir une catégorie de score
    */
-  socket.on('choose_score', async (payload: { roomId: string; category: ScoreCategory }) => {
-    const roomId = parseRoomId(payload?.roomId)
-    const category = payload?.category
-    if (!roomId || !isScoreCategory(category)) {
-      socket.emit('error', { message: 'Choix de score invalide.' })
+  socket.on('choose_score', async ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
+    if (!isValidRoomId(roomId) || !isScoreCategory(category)) {
+      socket.emit('error', { message: 'Action de jeu invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
@@ -119,17 +134,22 @@ export function setupGameHandlers(
           `${playerAfter.name} a marqué ${scoreObtained} point${scoreObtained > 1 ? 's' : ''} en ${categoryLabel}`)
       }
       
+      io.to(roomId).emit('game_update', gameState)
+
       if (gameState.gameStatus === 'finished') {
-        await finalizeGame({
-          io,
-          supabase,
-          roomId,
-          gameState,
+        // Mettre à jour la base de données
+        const persisted = await updateFinishedGame(supabase, roomId, gameState)
+        if (!persisted.success) {
+          socket.emit('error', { message: 'Impossible de finaliser la partie.' })
+          return
+        }
+
+        io.to(roomId).emit('game_ended', {
+          winner: gameState.winner,
           reason: 'completed',
+          message: `${gameState.winner} remporte la partie !`,
         })
       } else {
-        io.to(roomId).emit('game_update', gameState)
-
         // Vérifier si on a changé de tour
         const newTurnNumber = gameState.turnNumber
         if (newTurnNumber > oldTurnNumber) {
@@ -148,10 +168,13 @@ export function setupGameHandlers(
   /**
    * Abandonner une partie en cours
    */
-  socket.on('abandon_game', async (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) {
-      socket.emit('error', { message: 'Code de partie invalide.' })
+  socket.on('abandon_game', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
@@ -166,30 +189,13 @@ export function setupGameHandlers(
     // Marquer qu'il s'agit d'un abandon volontaire pour éviter le délai de grâce
     socket.data.voluntaryAbandon = true
 
-    // Récupérer le gameState AVANT de retirer le joueur pour sauvegarder ses stats
+    // Récupérer l'état avant le retrait afin de savoir si le timer doit redémarrer.
     const gameBeforeRemoval = getGame(roomId)
-    
-    // Vérifier si c'était le tour du joueur qui abandonne
     let wasCurrentPlayer = false
 
     if (gameBeforeRemoval && userId) {
-      // Trouver le joueur qui abandonne
-      const abandoningPlayer = gameBeforeRemoval.players.find((p) => p.id === socket.id)
-      
-      // Vérifier si c'était son tour
-      if (abandoningPlayer) {
-        const playerIndex = gameBeforeRemoval.players.findIndex((p) => p.id === socket.id)
-        wasCurrentPlayer = (playerIndex === gameBeforeRemoval.currentPlayerIndex)
-
-        await recordPlayerAbandon({
-          io,
-          supabase,
-          roomId,
-          gameState: gameBeforeRemoval,
-          player: abandoningPlayer,
-          reason: 'abandon',
-        })
-      }
+      const playerIndex = gameBeforeRemoval.players.findIndex((player) => player.id === socket.id)
+      wasCurrentPlayer = playerIndex === gameBeforeRemoval.currentPlayerIndex
     }
 
     // Retirer le joueur du gameState
@@ -204,12 +210,18 @@ export function setupGameHandlers(
       // Plus de joueurs, partie annulée
       roomStates.delete(roomId)
     } else if (updatedGame.gameStatus === 'finished') {
-      await finalizeGame({
-        io,
-        supabase,
-        roomId,
-        gameState: updatedGame,
+      // Mettre à jour la base de données
+      const persisted = await updateFinishedGame(supabase, roomId, updatedGame)
+      if (!persisted.success) {
+        socket.emit('error', { message: 'Impossible de finaliser la partie.' })
+        return
+      }
+
+      io.to(roomId).emit('game_update', updatedGame)
+      io.to(roomId).emit('game_ended', {
+        winner: updatedGame.winner,
         reason: 'abandon',
+        message: `${updatedGame.winner} remporte la partie par abandon !`,
       })
       // Ne pas supprimer roomStates immédiatement pour éviter que les joueurs soient renvoyés à la salle d'attente
       // Le roomState sera nettoyé quand tous les joueurs quitteront la partie
@@ -232,9 +244,11 @@ export function setupGameHandlers(
       
       // Redémarrer le timer uniquement si c'était le tour du joueur qui abandonne
       // (le timer a été nettoyé dans removePlayer dans ce cas)
-      if (wasCurrentPlayer) {
-        startTurnTimerWithCallbacks(io, supabase, roomId)
-      }
+        if (wasCurrentPlayer) {
+          void startTurnTimerWithCallbacks(io, supabase, roomId)
+        } else if (!await saveGameSnapshot(supabase, updatedGame)) {
+          socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+        }
     }
   })
 
@@ -252,16 +266,18 @@ export function setupGameHandlers(
       newRoomId: string
       hostName: string
     }) => {
-      const parsedOldRoomId = parseRoomId(oldRoomId)
-      const parsedNewRoomId = parseRoomId(newRoomId)
-      if (!parsedOldRoomId || !parsedNewRoomId || typeof hostName !== 'string') {
-        socket.emit('error', { message: 'Données de revanche invalides.' })
+      if (!isValidRoomId(oldRoomId) || !isValidRoomId(newRoomId)) {
+        socket.emit('error', { message: 'Identifiant de partie invalide.' })
+        return
+      }
+      if (!socket.data.authenticated || !socket.rooms.has(oldRoomId)) {
+        socket.emit('error', { message: 'Accès à la partie refusé.' })
         return
       }
 
       // Notifier tous les joueurs de l'ancienne room qu'une nouvelle partie est disponible
-      socket.to(parsedOldRoomId).emit('rematch_available', {
-        newRoomId: parsedNewRoomId,
+      socket.to(oldRoomId).emit('rematch_available', {
+        newRoomId,
         hostName,
       })
     }
@@ -271,9 +287,26 @@ export function setupGameHandlers(
    * Gestion du départ de l'hôte d'une partie terminée
    * Redirige automatiquement tous les autres joueurs vers le dashboard
    */
-  socket.on('host_leaving_finished_game', (rawRoomId: string) => {
-    const roomId = parseRoomId(rawRoomId)
-    if (!roomId) return
+  socket.on('host_leaving_finished_game', async (roomId: string) => {
+    if (!isValidRoomId(roomId)) {
+      socket.emit('error', { message: 'Identifiant de partie invalide.' })
+      return
+    }
+    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      socket.emit('error', { message: 'Accès à la partie refusé.' })
+      return
+    }
+
+    const { data: game } = await supabase
+      .from('games')
+      .select('owner, status')
+      .eq('id', roomId)
+      .maybeSingle()
+
+    if (!game || game.owner !== socket.data.userId || game.status !== 'finished') {
+      socket.emit('error', { message: 'Action réservée à l\'hôte de la partie terminée.' })
+      return
+    }
 
     // Notifier tous les autres joueurs de retourner au dashboard
     socket.to(roomId).emit('host_left_finished_game', {

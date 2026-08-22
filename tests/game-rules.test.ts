@@ -8,6 +8,7 @@ import {
 } from '../src/lib/yamsLogic'
 import { canChooseCategory, getNextCategory } from '../src/lib/variantLogic'
 import { levelFromXp, xpForLevel } from '../src/lib/userStats'
+import { chooseScore, clearAllGames, initializeGame } from '../src/server/gameManager'
 
 test('scores standard Yams combinations correctly', () => {
   assert.equal(calculateScore('fullHouse', [2, 2, 3, 3, 3]), 25)
@@ -42,4 +43,15 @@ test('keeps XP progression monotonic and capped at level 50', () => {
   assert.equal(levelFromXp(0), 1)
   assert.equal(levelFromXp(xpForLevel(2)), 2)
   assert.equal(levelFromXp(xpForLevel(50) + 10_000), 50)
+})
+
+test('records the face of every Yams rolled when a score is chosen', () => {
+  clearAllGames()
+  const game = initializeGame('YAMSFACE', [{ id: 'player-1', name: 'Alice' }])
+  game.dice = Array.from({ length: 5 }, () => ({ value: 4, locked: false }))
+
+  const updatedGame = chooseScore(game.roomId, 'player-1', 'fours')
+
+  assert.deepEqual(updatedGame?.players[0].yamsFaces, [4])
+  clearAllGames()
 })
