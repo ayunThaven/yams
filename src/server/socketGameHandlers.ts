@@ -160,7 +160,7 @@ export function setupGameHandlers(
         io.to(roomId).emit('system_message', `C'est au tour de ${currentPlayer.name}`)
         
         // Démarrer le timer pour le nouveau tour
-        startTurnTimerWithCallbacks(io, roomId, supabase)
+        startTurnTimerWithCallbacks(io, supabase, roomId)
       }
     }
   })
@@ -244,11 +244,11 @@ export function setupGameHandlers(
       
       // Redémarrer le timer uniquement si c'était le tour du joueur qui abandonne
       // (le timer a été nettoyé dans removePlayer dans ce cas)
-      if (wasCurrentPlayer) {
-        startTurnTimerWithCallbacks(io, roomId, supabase)
-      } else if (!await saveGameSnapshot(supabase, updatedGame)) {
-        socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
-      }
+        if (wasCurrentPlayer) {
+          void startTurnTimerWithCallbacks(io, supabase, roomId)
+        } else if (!await saveGameSnapshot(supabase, updatedGame)) {
+          socket.emit('error', { message: 'Impossible de sauvegarder la partie.' })
+        }
     }
   })
 

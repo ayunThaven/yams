@@ -10,6 +10,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSupabase } from '@/components/Providers'
 import { useGameSocket } from '@/hooks/useGameSocket'
 import { useGameProtection } from '@/contexts/GameProtectionContext'
+import { useFlashMessage } from '@/contexts/FlashMessageContext'
 import {
   handleStartGame,
   handleLeaveGame,
@@ -31,6 +32,7 @@ export default function GamePage() {
   const router = useRouter()
   const { user, userProfile, isLoading: authLoading } = useSupabase()
   const { setIsInActiveGame, setSocket, setRoomId } = useGameProtection()
+  const { showAchievement } = useFlashMessage()
   const userId = user?.id
 
   // Vérification de l'existence de la partie
@@ -57,6 +59,9 @@ export default function GamePage() {
       authLoading,
       userProfile, // Passer le profil pour éviter une requête supplémentaire
       shouldConnect: gameExists === true, // Ne se connecter que si la partie existe
+      onAchievementsUnlocked: (achievements) => {
+        achievements.forEach(showAchievement)
+      },
     }
   )
 

@@ -15,8 +15,8 @@ import { saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
  */
 export async function handleTimerExpiredAndRestart(
   io: Server,
-  roomId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  roomId: string
 ): Promise<void> {
   const result = handleTimerExpired(roomId)
   if (!result) return
@@ -32,16 +32,12 @@ export async function handleTimerExpiredAndRestart(
   
   // Si la partie est terminée
   if (updatedGameState.gameStatus === 'finished') {
-    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState)
-    if (!persisted.success) {
-      io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
-      return
-    }
-
-    io.to(roomId).emit('game_ended', {
-      winner: updatedGameState.winner,
-      reason: 'completed',
-      message: `${updatedGameState.winner} remporte la partie !`,
+    await finalizeGame({
+      io,
+      supabase,
+      roomId,
+      gameState: updatedGameState,
+      reason: 'timeout',
     })
   } else {
     // Redémarrer le timer pour le joueur suivant
@@ -51,7 +47,9 @@ export async function handleTimerExpiredAndRestart(
     // Redémarrer le timer (appel récursif)
     startTurnTimer(
       roomId,
-      () => void handleTimerExpiredAndRestart(io, roomId, supabase),
+      () => {
+        void handleTimerExpiredAndRestart(io, supabase, roomId)
+      },
       (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
     )
     await saveGameSnapshot(supabase, updatedGameState)
@@ -64,13 +62,13 @@ export async function handleTimerExpiredAndRestart(
  */
 export async function startTurnTimerWithCallbacks(
   io: Server,
-  roomId: string,
   supabase: SupabaseClient,
+  roomId: string,
   expiresAt?: number
 ): Promise<void> {
   startTurnTimer(
     roomId,
-    () => void handleTimerExpiredAndRestart(io, roomId, supabase),
+    () => void handleTimerExpiredAndRestart(io, supabase, roomId),
     (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft),
     expiresAt
   )

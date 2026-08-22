@@ -7,7 +7,8 @@
 import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { removePlayer, getGameState } from './gameManager'
-import { updateFinishedGame } from './gameDbUtils'
+import { finalizeGame, recordPlayerAbandon } from './gameFinalizationService'
+import { startTurnTimerWithCallbacks } from './timerUtils'
 
 // Délai de grâce en millisecondes (60 secondes)
 const DISCONNECT_GRACE_PERIOD = 60000
@@ -82,6 +83,30 @@ export function setupDisconnectHandlers(
             
             // Créer un timer pour l'abandon après 60 secondes
             const abandonTimer = setTimeout(async () => {
+              // Récupérer le gameState AVANT de retirer le joueur pour sauvegarder ses stats
+              const gameBeforeRemoval = getGameState(roomId)
+              let wasCurrentPlayer = false
+
+              // Enregistrer les stats avec perte d'XP si le joueur existe dans le gameState
+              if (gameBeforeRemoval && userId) {
+                // Trouver le joueur qui abandonne par userId (car socket.id n'est plus valide)
+                const abandoningPlayer = gameBeforeRemoval.players.find((p) => p.userId === userId)
+                
+                if (abandoningPlayer) {
+                  const playerIndex = gameBeforeRemoval.players.findIndex((p) => p.userId === userId)
+                  wasCurrentPlayer = playerIndex === gameBeforeRemoval.currentPlayerIndex
+
+                  await recordPlayerAbandon({
+                    io,
+                    supabase,
+                    roomId,
+                    gameState: gameBeforeRemoval,
+                    player: abandoningPlayer,
+                    reason: 'abandon',
+                  })
+                }
+              }
+              
               // Le joueur ne s'est pas reconnecté, marquer comme abandonné
               io.to(roomId).emit('system_message', `${playerName} a abandonné la partie`)
               
@@ -92,18 +117,13 @@ export function setupDisconnectHandlers(
                 // Plus de joueurs, partie annulée
                 roomStates.delete(roomId)
               } else if (updatedGame.gameStatus === 'finished') {
-                const persisted = await updateFinishedGame(supabase, roomId, updatedGame)
-                if (!persisted.success) {
-                  io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
-                  disconnectTimers.delete(timerKey)
-                  return
-                }
-
-                io.to(roomId).emit('game_update', updatedGame)
-                io.to(roomId).emit('game_ended', {
-                  winner: updatedGame.winner,
+                // Un seul joueur reste, il gagne
+                await finalizeGame({
+                  io,
+                  supabase,
+                  roomId,
+                  gameState: updatedGame,
                   reason: 'abandon',
-                  message: `${updatedGame.winner} remporte la partie par abandon !`,
                 })
                 roomStates.delete(roomId)
               } else {
@@ -120,6 +140,10 @@ export function setupDisconnectHandlers(
                 
                 const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex]
                 io.to(roomId).emit('system_message', `C'est au tour de ${currentPlayer.name}`)
+
+                if (wasCurrentPlayer) {
+                  startTurnTimerWithCallbacks(io, supabase, roomId)
+                }
               }
               
               // Nettoyer le timer
