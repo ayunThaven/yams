@@ -1,39 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifyJwtToken } from '@/lib/authServer'
 import { SimpleCache } from '@/lib/simpleCache'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { requireAuth } from '@/lib/authRequest'
 
 // Cache process-local pour l'historique récent d'un utilisateur.
-type HistoryGame = {
+type HistoryPlayerScore = {
+  id?: string
+  name?: string
+  user_id?: string
+  score?: number
+  abandoned?: boolean
+}
+
+type HistoryGameRow = {
   id: string
   owner: string | null
   status: string
   created_at: string
   winner: string | null
-  players_scores: unknown
+  players_scores: HistoryPlayerScore[] | null
   variant: string | null
 }
 
-type HistoryResultRow = {
-  score: number
-  abandoned: boolean
-  finalized_at: string
-  games: HistoryGame | HistoryGame[] | null
-}
-
-const historyCache = new SimpleCache<HistoryGame[]>(30_000) // 30 secondes
+const historyCache = new SimpleCache<HistoryGameRow[]>(30_000) // 30 secondes
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get(COOKIE_NAME)?.value
-  const authUser = token ? verifyJwtToken(token) : null
+  const auth = requireAuth(request)
+  if (auth.response) return auth.response
 
-  if (!authUser) {
-    return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
-  }
-
-  const userId = authUser.id
+  const userId = auth.user.id
   const cacheKey = `history_${userId}`
   const cached = historyCache.get(cacheKey)
 
@@ -51,11 +46,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { data, error } = await supabase
-      .from('game_results')
-      .select('score, abandoned, finalized_at, games!inner(id, owner, status, created_at, winner, players_scores, variant)')
-      .eq('user_id', userId)
-      .order('finalized_at', { ascending: false })
-      .limit(10)
+      .from('games')
+      .select('id, owner, status, created_at, winner, players_scores, variant')
+      .eq('status', 'finished')
+      .order('created_at', { ascending: false })
+      .limit(50)
 
     if (error) {
       console.error('[API/HISTORY] Erreur chargement games:', error)
@@ -65,11 +60,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const myGames = ((data ?? []) as unknown as HistoryResultRow[])
-      .flatMap((result) => {
-        const game = Array.isArray(result.games) ? result.games[0] : result.games
-        return game ? [game] : []
+    const myGames = ((data || []) as HistoryGameRow[])
+      .filter((game) => {
+        if (game.owner === userId) return true
+        if (game.players_scores && Array.isArray(game.players_scores)) {
+          return game.players_scores.some((p) => p.user_id === userId)
+        }
+        return false
       })
+      .slice(0, 10)
 
     historyCache.set(cacheKey, myGames)
 

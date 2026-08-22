@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { AUTH_COOKIE_NAME } from '@/lib/authRequest'
 
 export async function POST() {
   const response = NextResponse.json({ success: true }, { status: 200 })
 
   // Effacer le cookie d'authentification
-  response.cookies.set(COOKIE_NAME, '', {
+  response.cookies.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

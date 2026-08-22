@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SimpleCache } from '@/lib/simpleCache'
-import { verifyJwtToken } from '@/lib/authServer'
-
-const COOKIE_NAME = 'yams_auth_token'
+import { getAuthUserFromRequest } from '@/lib/authRequest'
 
 // Cache process-local pour le leaderboard.
 // TTL court pour garder des données fraîches.
@@ -32,8 +30,7 @@ export async function GET(request: NextRequest) {
   const cached = leaderboardCache.get(cacheKey)
 
   // Récupérer l'utilisateur connecté
-  const token = request.cookies.get(COOKIE_NAME)?.value
-  const authUser = token ? verifyJwtToken(token) : null
+  const authUser = getAuthUserFromRequest(request)
   const userId = authUser?.id
 
   const supabase = createAdminClient()
