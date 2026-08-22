@@ -97,7 +97,7 @@ app.prepare().then(async () => {
       restoreGameState(snapshot.state)
       roomStates.set(snapshot.gameId, { started: snapshot.state.gameStatus === 'playing' })
       if (snapshot.state.gameStatus === 'playing') {
-        void startTurnTimerWithCallbacks(io, snapshot.gameId, supabase, snapshot.turnExpiresAt ?? undefined)
+        void startTurnTimerWithCallbacks(io, supabase, snapshot.gameId, snapshot.turnExpiresAt ?? undefined)
       }
     }
   } catch (error) {

@@ -32,12 +32,16 @@ export async function handleTimerExpiredAndRestart(
   
   // Si la partie est terminée
   if (updatedGameState.gameStatus === 'finished') {
-    await finalizeGame({
-      io,
-      supabase,
-      roomId,
-      gameState: updatedGameState,
+    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState)
+    if (!persisted.success) {
+      io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
+      return
+    }
+
+    io.to(roomId).emit('game_ended', {
+      winner: updatedGameState.winner,
       reason: 'timeout',
+      message: `${updatedGameState.winner} remporte la partie !`,
     })
   } else {
     // Redémarrer le timer pour le joueur suivant
