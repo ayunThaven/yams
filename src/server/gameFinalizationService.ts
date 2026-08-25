@@ -121,6 +121,8 @@ async function buildPlayerResult(
       yamsCount,
       xpGained,
       reason,
+      scoreSheet: player.scoreSheet,
+      yamsFaces: player.yamsFaces ?? [],
     },
   }
 }
@@ -274,7 +276,7 @@ async function finalizeGameInternal({
 }: FinalizeGameParams): Promise<PersistedGameResult> {
   gameState.gameStatus = 'finished'
 
-  await updateFinishedGame(supabase, roomId, gameState)
+  await updateFinishedGame(supabase, roomId, gameState, reason)
 
   const playerResults: PlayerResult[] = []
 

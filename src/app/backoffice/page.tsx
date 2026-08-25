@@ -1,0 +1,12 @@
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import BackofficePageHeader from '@/components/backoffice/BackofficePageHeader'
+
+export default function BackofficeHome() {
+  const [stats, setStats] = useState({ players: 0, tickets: 0, urgent: 0 })
+  useEffect(() => { Promise.all([fetch('/api/backoffice/players'), fetch('/api/backoffice/tickets')]).then(async ([players, tickets]) => { if (!players.ok || !tickets.ok) return; const p = await players.json(); const t = await tickets.json(); setStats({ players: p.total, tickets: t.total, urgent: (t.data ?? []).filter((item: { priority: string; status: string }) => ['high', 'critical'].includes(item.priority) && !['resolved', 'rejected'].includes(item.status)).length }) }) }, [])
+  const cards = [{ label: 'Joueurs suivis', value: stats.players, detail: 'Consulter les profils et les historiques', href: '/backoffice/players', accent: 'text-sky-300' }, { label: 'Tickets ouverts', value: stats.tickets, detail: 'Traiter les signalements des joueurs', href: '/backoffice/tickets', accent: 'text-violet-300' }, { label: 'À prioriser', value: stats.urgent, detail: 'Tickets urgents ou critiques encore ouverts', href: '/backoffice/tickets?priority=critical', accent: 'text-amber-300' }]
+  return <div><BackofficePageHeader eyebrow="Centre de contrôle" title="Bonjour" description="Retrouvez les signalements à traiter, les profils joueurs et les opérations administratives au même endroit." /><section className="grid gap-4 md:grid-cols-3">{cards.map((card) => <Link key={card.label} href={card.href} className="bo-panel group p-6 transition hover:-translate-y-1 hover:border-slate-600"><p className="text-sm font-medium text-slate-400">{card.label}</p><p className={`mt-3 text-4xl font-bold ${card.accent}`}>{card.value}</p><p className="mt-5 text-sm leading-5 text-slate-400">{card.detail}<span className="ml-2 text-emerald-400 transition group-hover:ml-3">→</span></p></Link>)}</section><section className="bo-panel mt-6 grid gap-5 p-6 md:grid-cols-[1fr_auto] md:items-center"><div><h2 className="text-lg font-bold text-slate-100">Bien commencer</h2><p className="mt-1 text-sm text-slate-400">Chaque modification de profil est journalisée : ouvrez d’abord la fiche du joueur pour contrôler les preuves de partie.</p></div><Link href="/backoffice/tickets" className="bo-button-secondary">Voir les tickets</Link></section></div>
+}

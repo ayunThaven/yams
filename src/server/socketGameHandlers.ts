@@ -9,7 +9,7 @@ import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './g
 import { ScoreCategory } from '../types/game'
 import { getCategoryLabel } from '../lib/categoryLabels'
 import { startTurnTimerWithCallbacks } from './timerUtils'
-import { emitUnlockedAchievements, saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
+import { emitUnlockedAchievements, saveGameSnapshot, saveScoreAction, updateFinishedGame } from './gameDbUtils'
 import { isScoreCategory, isValidDieIndex, isValidRoomId } from './socketValidation'
 
 /**
@@ -117,6 +117,8 @@ export function setupGameHandlers(
     const oldTurnNumber = gameBeforeChoice.turnNumber
     const playerBefore = gameBeforeChoice.players.find(p => p.id === playerId)
     if (!playerBefore) return
+    const diceValues = gameBeforeChoice.dice.map((die) => die.value)
+    const scoreTurnNumber = gameBeforeChoice.turnNumber
     
     const gameState = chooseScore(roomId, playerId, category)
 
@@ -127,6 +129,22 @@ export function setupGameHandlers(
       
       const scoreObtained = playerAfter.scoreSheet[category]
       const categoryLabel = getCategoryLabel(category)
+
+      if (!playerBefore.userId || scoreObtained === null || scoreObtained === undefined) return
+      const yamsFace = diceValues.every((value) => value === diceValues[0]) ? diceValues[0] : null
+      if (!await saveScoreAction(supabase, gameState, {
+        userId: playerBefore.userId,
+        playerName: playerAfter.name,
+        turnNumber: scoreTurnNumber,
+        category,
+        diceValues,
+        score: scoreObtained,
+        totalAfter: playerAfter.totalScore,
+        yamsFace,
+      })) {
+        socket.emit('error', { message: 'Impossible de sauvegarder le score.' })
+        return
+      }
       
       // Message : score du joueur
       if (scoreObtained !== null && scoreObtained !== undefined) {
@@ -212,7 +230,7 @@ export function setupGameHandlers(
       roomStates.delete(roomId)
     } else if (updatedGame.gameStatus === 'finished') {
       // Mettre à jour la base de données
-      const persisted = await updateFinishedGame(supabase, roomId, updatedGame)
+      const persisted = await updateFinishedGame(supabase, roomId, updatedGame, 'abandon')
       if (!persisted.success) {
         socket.emit('error', { message: 'Impossible de finaliser la partie.' })
         return

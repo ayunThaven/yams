@@ -7,7 +7,7 @@ import { Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { getGameState, handleTimerExpired, startTurnTimer } from './gameManager'
 import { getCategoryLabel } from '../lib/categoryLabels'
-import { emitUnlockedAchievements, saveGameSnapshot, updateFinishedGame } from './gameDbUtils'
+import { emitUnlockedAchievements, saveGameSnapshot, saveScoreAction, updateFinishedGame } from './gameDbUtils'
 
 /**
  * Gère l'expiration du timer et redémarre le timer suivant
@@ -21,7 +21,18 @@ export async function handleTimerExpiredAndRestart(
   const result = handleTimerExpired(roomId)
   if (!result) return
   
-  const { gameState: updatedGameState, category, score, playerName } = result
+  const { gameState: updatedGameState, category, score, playerName, userId, diceValues, turnNumber, totalAfter, yamsFace } = result
+
+  // L'action automatique et son snapshot doivent être durables avant toute diffusion.
+  const persistedAction = userId
+    ? await saveScoreAction(supabase, updatedGameState, {
+      userId, playerName, turnNumber, category, diceValues, score, totalAfter, yamsFace,
+    })
+    : await saveGameSnapshot(supabase, updatedGameState)
+  if (!persistedAction) {
+    io.to(roomId).emit('error', { message: 'Impossible de sauvegarder le score automatique.' })
+    return
+  }
   
   // Message de score avec (afk)
   const categoryLabel = getCategoryLabel(category)
@@ -32,7 +43,7 @@ export async function handleTimerExpiredAndRestart(
   
   // Si la partie est terminée
   if (updatedGameState.gameStatus === 'finished') {
-    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState)
+    const persisted = await updateFinishedGame(supabase, roomId, updatedGameState, 'timeout')
     if (!persisted.success) {
       io.to(roomId).emit('error', { message: 'Impossible de finaliser la partie.' })
       return
@@ -57,7 +68,6 @@ export async function handleTimerExpiredAndRestart(
       },
       (timeLeft: number) => io.to(roomId).emit('turn_timer_update', timeLeft)
     )
-    await saveGameSnapshot(supabase, updatedGameState)
   }
 }
 

@@ -10,7 +10,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/lib/*.test.ts",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "backoffice:bootstrap": "tsx scripts/bootstrap-backoffice.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -23,6 +24,8 @@
     "next": "15.5.9",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.11",
+    "otplib": "^13.5.0",
+    "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "socket.io": "^4.8.1",
@@ -33,6 +36,7 @@
     "@eslint/eslintrc": "^3",
     "@types/mjml": "^4.7.4",
     "@types/node": "^20.19.19",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",

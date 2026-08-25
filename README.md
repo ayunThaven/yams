@@ -301,6 +301,14 @@ http://localhost:3000
 
 Le serveur de développement lance à la fois Next.js et le serveur Socket.IO personnalisé.
 
+## Variables d’environnement
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `AUTH_JWT_SECRET`
+- `BACKOFFICE_JWT_SECRET` et `BACKOFFICE_TOTP_ENCRYPTION_KEY`
+- `AUTH_COOKIE_SECURE=false` en HTTP local, `true` en HTTPS
 ---
 
 ## 📦 Build de production
@@ -316,6 +324,31 @@ Puis le serveur Node.js :
 ```bash
 npm run build:server
 ```
+
+## Bootstrap du back-office
+
+Après la migration `022_backoffice_foundation.sql`, créer la première invitation privée :
+
+```bash
+npm run backoffice:bootstrap -- --email=admin@example.com
+```
+
+Pour tester en local avec le serveur sur `http://localhost:3000`, définir
+`BACKOFFICE_COOKIE_SECURE=false` dans `.env`, puis générer le lien local :
+
+```bash
+npm run backoffice:bootstrap -- --email=admin@example.com --base-url=http://localhost:3000
+```
+
+Ajouter `--print-link` pour afficher le lien sans envoyer d’e-mail :
+
+```bash
+npm run backoffice:bootstrap -- --email=admin@example.com --base-url=http://localhost:3000 --print-link
+```
+
+Le lien reçu autorise un seul appareil. Sans cet appareil autorisé, les pages et API du back-office répondent `404`.
+
+## Docker
 
 Lancez ensuite le serveur :
 

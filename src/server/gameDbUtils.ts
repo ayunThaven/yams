@@ -1,10 +1,11 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Server } from 'socket.io'
 
-import { GameState } from '../types/game'
+import { GameEndReason, GameState } from '../types/game'
 import { Achievement } from '../types/achievement'
 import { finalizeGame } from './gameFinalization'
 import { GameRepository } from './gameRepository'
+import type { ScoreActionWrite } from './gameRepository'
 
 export type FinishedGameUpdateResult = {
   success: boolean
@@ -19,7 +20,8 @@ export type FinishedGameUpdateResult = {
 export async function updateFinishedGame(
   supabase: SupabaseClient,
   roomId: string,
-  gameState: GameState
+  gameState: GameState,
+  reason: GameEndReason = 'completed'
 ): Promise<FinishedGameUpdateResult> {
   if (gameState.roomId !== roomId) {
     return {
@@ -30,7 +32,7 @@ export async function updateFinishedGame(
   }
 
   try {
-    const result = await finalizeGame(supabase, gameState)
+    const result = await finalizeGame(supabase, gameState, reason)
     if (!result.success) {
       console.error('[DB] Game finalization failed:', result.error)
     }
@@ -63,6 +65,20 @@ export async function saveGameSnapshot(supabase: SupabaseClient, gameState: Game
     return true
   } catch (error) {
     console.error('[DB] Snapshot persistence failed:', error)
+    return false
+  }
+}
+
+export async function saveScoreAction(
+  supabase: SupabaseClient,
+  gameState: GameState,
+  action: ScoreActionWrite
+): Promise<boolean> {
+  try {
+    await new GameRepository(supabase).saveScoreAction(gameState, action)
+    return true
+  } catch (error) {
+    console.error('[DB] Score action persistence failed:', error)
     return false
   }
 }

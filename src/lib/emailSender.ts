@@ -16,6 +16,14 @@ import {
 const BREVO_API_KEY = process.env.BREVO_API_KEY
 const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'no-reply@yams.local'
 
+// Back-office emails share the Brevo transport used by player notifications.
+// The adapter keeps the back-office call site intentionally small.
+const SENDGRID_API_KEY = BREVO_API_KEY
+const SENDGRID_FROM_EMAIL = BREVO_FROM_EMAIL
+const sgMail = {
+  send: async ({ to, subject, text, html }: { to: string; from?: string; subject: string; text: string; html: string }) => sendEmail({ to, subject, text, html }),
+}
+
 async function sendEmail(params: {
   to: string
   subject: string
@@ -128,6 +136,21 @@ Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email.`
     console.error('❌ Erreur lors de l\'envoi de l\'email de réinitialisation:', error)
     throw error
   }
+}
+
+export async function sendBackofficeAccessEmail(params: { to: string; accessUrl: string }) {
+  const { to, accessUrl } = params
+  if (!SENDGRID_API_KEY) {
+    console.warn(`Lien d'accès back-office pour ${to}: ${accessUrl}`)
+    return
+  }
+  await sgMail.send({
+    to,
+    from: SENDGRID_FROM_EMAIL,
+    subject: 'Invitation privée au back-office Yams',
+    text: `Ce lien privé autorise un appareil et expire rapidement. Ne le transférez pas : ${accessUrl}`,
+    html: `<div style="font-family:system-ui;line-height:1.6"><h2>Accès privé au back-office Yams</h2><p>Ce lien à usage unique autorise cet appareil. Il expire rapidement et ne doit pas être transféré.</p><p><a href="${accessUrl}">Autoriser cet appareil</a></p></div>`,
+  })
 }
 
 

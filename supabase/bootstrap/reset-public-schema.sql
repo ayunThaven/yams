@@ -350,6 +350,20 @@ GRANT SELECT ON public.leaderboard                    TO anon;
 GRANT SELECT ON public.achievements_with_rarity_rank  TO authenticated;
 GRANT SELECT ON public.achievements_with_rarity_rank  TO anon;
 
+-- Le client backend utilise exclusivement service_role. Ce rôle doit avoir
+-- les droits PostgreSQL, en plus du contournement des politiques RLS.
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+-- L'authentification locale est exécutée uniquement par le backend avec la
+-- clé service_role. RLS ne remplace pas ces privilèges PostgreSQL.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.auth_local_users
+  TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.email_verification_tokens
+  TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.password_reset_tokens
+  TO service_role;
+
 
 -- =====================================================
 -- 8. Commentaires — tables existantes
@@ -424,7 +438,7 @@ INSERT INTO public.achievements (id, name, description, image_path, rarity, cate
 ('champion',    'Champion',       'Obtenez un taux de victoire de 75% avec au moins 10 parties jouées',  '/images/achievements/Crystal/Medals_Champion_Text.webp',    'Crystal', 'special'),
 ('perfect_game','Partie parfaite','Gagnez une partie en réalisant le score maximum de 375 points',       '/images/achievements/Crystal/Medals_PerfectGame_Text.webp',  'Crystal', 'special'),
 ('yatzhee',     'Yatzhee',        'Gagnez une partie en réalisant un Yatzhee',                           '/images/achievements/Crystal/Medals_Yatzhee_Text.webp',      'Crystal', 'special'),
-('bug_finder',  'Bug finder',     'Trouvez un bug',                                                      '/images/achievements/Crystal/Medals_BugFinder_Text.webp',    'Crystal', 'special')
+('bug_finder',  'Bug finder',     'Trouvez un bug',                                                      '/images/achievements/Crystal/SMedals_BugFinder_Text.webp',   'Crystal', 'special')
 ON CONFLICT (id) DO NOTHING;
 
 -- Ces succès correspondent à des fonctionnalités qui ne sont pas disponibles.

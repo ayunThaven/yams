@@ -461,7 +461,8 @@ VALUES
   ('level_50', 'Niveau 50', 'Atteindre le niveau 50.', '/images/achievements/Crystal/Medals_Lv50_Text.webp', 'Crystal', 'level'),
   ('perfect_game', 'Partie parfaite', 'Realiser une partie parfaite.', '/images/achievements/Crystal/SMedals_PerfectGame_Text.webp', 'Crystal', 'score'),
   ('level_33', 'Niveau 33', 'Atteindre le niveau 33.', '/images/achievements/Crystal/SMedals_Lv33_Text.webp', 'Crystal', 'level'),
-  ('win_ayun', 'Defier Ayun', 'Gagner contre Ayun.', '/images/achievements/Crystal/SMedals_Ayun_Text.webp', 'Crystal', 'special')
+  ('win_ayun', 'Defier Ayun', 'Gagner contre Ayun.', '/images/achievements/Crystal/SMedals_Ayun_Text.webp', 'Crystal', 'special'),
+  ('bug_finder', 'Bug Finder', 'Signaler un bug confirme et corrige.', '/images/achievements/Crystal/SMedals_BugFinder_Text.webp', 'Crystal', 'special')
 ON CONFLICT (id) DO UPDATE
 SET
   name = EXCLUDED.name,
@@ -514,6 +515,18 @@ GRANT SELECT ON public.users TO anon, authenticated;
 GRANT SELECT ON public.leaderboard TO anon, authenticated;
 GRANT SELECT ON public.achievements TO anon, authenticated;
 GRANT SELECT ON public.achievements_with_rarity_rank TO anon, authenticated;
+
+-- The backend connects with service_role. It bypasses RLS, but PostgreSQL
+-- object privileges remain mandatory for all application tables and views.
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+-- Local authentication is performed only by the server-side service_role
+-- client. A service-role JWT bypasses RLS, but table privileges are still
+-- required.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.auth_local_users TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.email_verification_tokens TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.password_reset_tokens TO service_role;
 
 GRANT EXECUTE ON FUNCTION public.xp_for_level(INTEGER) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.level_from_xp(INTEGER) TO anon, authenticated, service_role;

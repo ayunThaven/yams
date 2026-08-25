@@ -11,6 +11,19 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hasAuthCookie = !!request.cookies.get('yams_auth_token')?.value
+  const isBackoffice = pathname === '/backoffice' || pathname.startsWith('/backoffice/') || pathname.startsWith('/api/backoffice/')
+
+  // Première couche de camouflage. La validité réelle du jeton opaque est
+  // contrôlée côté serveur par le layout et chaque API back-office.
+  if (isBackoffice && !request.cookies.get('yams_bo_device')?.value) {
+    return new NextResponse('Not Found', {
+      status: 404,
+      headers: {
+        'Cache-Control': 'no-store',
+        'X-Robots-Tag': 'noindex, nofollow',
+      },
+    })
+  }
   
   // Routes d'authentification
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
@@ -32,7 +45,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl)
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+  if (isBackoffice) {
+    response.headers.set('Cache-Control', 'no-store')
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  }
+  return response
 }
 
 export const config = {

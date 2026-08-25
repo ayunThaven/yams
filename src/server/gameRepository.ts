@@ -2,6 +2,17 @@ import { SupabaseClient } from '@supabase/supabase-js'
 
 import { GameState } from '@/types/game'
 
+export type ScoreActionWrite = {
+  userId: string
+  playerName: string
+  turnNumber: number
+  category: string
+  diceValues: number[]
+  score: number
+  totalAfter: number
+  yamsFace: number | null
+}
+
 export type StoredGameSnapshot = {
   gameId: string
   state: GameState
@@ -34,6 +45,34 @@ export class GameRepository {
         saveQueues.delete(snapshot.roomId)
       }
     }
+  }
+
+  async saveScoreAction(gameState: GameState, action: ScoreActionWrite): Promise<void> {
+    const snapshot = cloneGameState(gameState)
+    const previousSave = saveQueues.get(snapshot.roomId) ?? Promise.resolve()
+    const currentSave = previousSave.catch(() => undefined).then(async () => {
+      const expectedVersion = snapshotVersions.get(snapshot.roomId) ?? 0
+      const turnExpiresAt = snapshot.turnStartTime && snapshot.turnTimeLeft !== undefined
+        ? new Date(snapshot.turnStartTime + snapshot.turnTimeLeft * 1000).toISOString() : null
+      const { data, error } = await this.supabase.rpc('record_score_action_and_snapshot', {
+        p_game_id: snapshot.roomId,
+        p_user_id: action.userId,
+        p_player_name: action.playerName,
+        p_turn_number: action.turnNumber,
+        p_category: action.category,
+        p_dice_values: action.diceValues,
+        p_score: action.score,
+        p_total_after: action.totalAfter,
+        p_yams_face: action.yamsFace,
+        p_state: snapshot,
+        p_expected_version: expectedVersion,
+        p_turn_expires_at: turnExpiresAt,
+      })
+      if (error || typeof data !== 'number') throw new Error(error?.message ?? 'Impossible de sauvegarder l’action de score.')
+      snapshotVersions.set(snapshot.roomId, data)
+    })
+    saveQueues.set(snapshot.roomId, currentSave)
+    try { await currentSave } finally { if (saveQueues.get(snapshot.roomId) === currentSave) saveQueues.delete(snapshot.roomId) }
   }
 
   private async saveSnapshot(gameState: GameState): Promise<void> {
