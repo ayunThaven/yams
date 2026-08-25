@@ -19,7 +19,7 @@ export type RateLimitResult = 'allowed' | 'limited' | 'unavailable'
 
 export async function allowAuthAttempt(
   request: NextRequest,
-  action: 'login' | 'register' | 'request-reset',
+  action: 'login' | 'register' | 'request-reset' | 'backoffice-login' | 'backoffice-mfa',
   email?: string
 ): Promise<RateLimitResult> {
   const supabase = createAdminClient()
@@ -29,6 +29,8 @@ export async function allowAuthAttempt(
     login: { limit: 10, window: 15 * 60 },
     register: { limit: 5, window: 60 * 60 },
     'request-reset': { limit: 5, window: 60 * 60 },
+    'backoffice-login': { limit: 6, window: 15 * 60 },
+    'backoffice-mfa': { limit: 6, window: 15 * 60 },
   }
   const { limit, window } = limits[action]
   const { data, error } = await supabase.rpc('consume_auth_rate_limit', {
