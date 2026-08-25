@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
 import { Achievement } from '@/types/achievement'
-import { GameState, PlayerGameState } from '@/types/game'
+import { GameEndReason, GameState, PlayerGameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
 import { countYamsInScoreSheet } from '@/lib/userStats'
 import { getFinalizationAchievementIds } from './achievementRules'
@@ -121,7 +121,8 @@ async function getLeaderboardRank(supabase: SupabaseClient, userId: string): Pro
 
 export async function finalizeGame(
   supabase: SupabaseClient,
-  gameState: GameState
+  gameState: GameState,
+  reason: GameEndReason = 'completed'
 ): Promise<{ success: boolean; achievements: Record<string, Achievement[]>; error?: string }> {
   const results = toPersistedResults(gameState)
   const { data, error } = await supabase.rpc('finalize_game', {
@@ -134,6 +135,10 @@ export async function finalizeGame(
   }
 
   const processedUserIds = ((data as FinalizationResponse | null)?.processed_user_ids ?? [])
+  await Promise.all(results.map((result) => supabase.from('game_results').update({
+    yams_faces: result.yams_faces,
+    reason,
+  }).eq('game_id', gameState.roomId).eq('user_id', result.user_id)))
   const achievements = await unlockFinalizationAchievements(supabase, gameState, results, processedUserIds)
 
   return { success: true, achievements }

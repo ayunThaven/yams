@@ -78,6 +78,8 @@ export interface PlayerResult {
   yamsCount: number
   xpGained: number
   reason: GameEndReason
+  scoreSheet?: ScoreSheet
+  yamsFaces?: number[]
 }
 
 export interface PersistedGameResult {

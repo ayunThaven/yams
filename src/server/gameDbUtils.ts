@@ -1,8 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
-import { GameState } from '../types/game'
+import { GameEndReason, GameState } from '../types/game'
 import { finalizeGame } from './gameFinalization'
 import { GameRepository } from './gameRepository'
+import type { ScoreActionWrite } from './gameRepository'
 
 /**
  * Records a completed game exactly once. The database function owns result
@@ -11,14 +12,15 @@ import { GameRepository } from './gameRepository'
 export async function updateFinishedGame(
   supabase: SupabaseClient,
   roomId: string,
-  gameState: GameState
+  gameState: GameState,
+  reason: GameEndReason = 'completed'
 ): Promise<{ success: boolean; error?: string }> {
   if (gameState.roomId !== roomId) {
     return { success: false, error: 'Game state does not match the requested room.' }
   }
 
   try {
-    const result = await finalizeGame(supabase, gameState)
+    const result = await finalizeGame(supabase, gameState, reason)
     if (!result.success) {
       console.error('[DB] Game finalization failed:', result.error)
     }
@@ -35,6 +37,20 @@ export async function saveGameSnapshot(supabase: SupabaseClient, gameState: Game
     return true
   } catch (error) {
     console.error('[DB] Snapshot persistence failed:', error)
+    return false
+  }
+}
+
+export async function saveScoreAction(
+  supabase: SupabaseClient,
+  gameState: GameState,
+  action: ScoreActionWrite
+): Promise<boolean> {
+  try {
+    await new GameRepository(supabase).saveScoreAction(gameState, action)
+    return true
+  } catch (error) {
+    console.error('[DB] Score action persistence failed:', error)
     return false
   }
 }
