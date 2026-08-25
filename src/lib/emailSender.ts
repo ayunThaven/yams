@@ -198,4 +198,19 @@ Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email.`
   }
 }
 
+export async function sendBackofficeAccessEmail(params: { to: string; accessUrl: string }) {
+  const { to, accessUrl } = params
+  if (!SENDGRID_API_KEY) {
+    console.warn(`Lien d'accès back-office pour ${to}: ${accessUrl}`)
+    return
+  }
+  await sgMail.send({
+    to,
+    from: SENDGRID_FROM_EMAIL,
+    subject: 'Invitation privée au back-office Yams',
+    text: `Ce lien privé autorise un appareil et expire rapidement. Ne le transférez pas : ${accessUrl}`,
+    html: `<div style="font-family:system-ui;line-height:1.6"><h2>Accès privé au back-office Yams</h2><p>Ce lien à usage unique autorise cet appareil. Il expire rapidement et ne doit pas être transféré.</p><p><a href="${accessUrl}">Autoriser cet appareil</a></p></div>`,
+  })
+}
+
 

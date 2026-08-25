@@ -19,6 +19,7 @@ const eslintConfig = [
       "build/**",
       "dist/**",
       "next-env.d.ts",
+      ".codex/**",
     ],
   },
 ];
