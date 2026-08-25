@@ -1,0 +1,15 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
+
+export default function ActivatePage() {
+  const router = useRouter(); const params = useSearchParams(); const token = params.get('token') || ''
+  const [setup, setSetup] = useState<{ setupToken: string; qrCode: string; manualSecret: string } | null>(null)
+  const [recovery, setRecovery] = useState<string[] | null>(null); const [error, setError] = useState('')
+  async function password(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const response = await fetch('/api/backoffice/auth/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password: form.get('password') }) }); const result = await response.json().catch(() => ({})); if (!response.ok) setError(result.error || 'Activation impossible.'); else setSetup(result) }
+  async function verify(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const response = await fetch('/api/backoffice/auth/activate/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setupToken: setup?.setupToken, code: form.get('code') }) }); const result = await response.json().catch(() => ({})); if (!response.ok) setError(result.error || 'Code invalide.'); else setRecovery(result.recoveryCodes) }
+  if (recovery) return <div className="mx-auto mt-20 max-w-xl rounded-xl bg-slate-900 p-8"><h1 className="text-2xl font-bold">Codes de récupération</h1><p className="my-3">Conservez-les maintenant : ils ne seront plus affichés.</p><pre className="grid grid-cols-2 gap-2 rounded bg-slate-800 p-4">{recovery.join('\n')}</pre><button onClick={() => router.replace('/backoffice')} className="mt-5 rounded bg-emerald-500 px-5 py-3 font-bold text-slate-950">J’ai sauvegardé mes codes</button></div>
+  return <div className="mx-auto mt-20 max-w-md rounded-xl bg-slate-900 p-8"><h1 className="text-3xl font-bold mb-5">Activer le compte</h1>{!setup ? <form onSubmit={password} className="space-y-4"><input name="password" type="password" minLength={12} required placeholder="Mot de passe (12 caractères minimum)" className="w-full rounded bg-slate-800 p-3" /><button className="w-full rounded bg-emerald-500 p-3 font-bold text-slate-950">Configurer le TOTP</button></form> : <form onSubmit={verify} className="space-y-4"><Image unoptimized width={220} height={220} src={setup.qrCode} alt="QR code TOTP" className="mx-auto rounded bg-white p-2" /><p className="break-all text-xs text-slate-400">Clé manuelle : {setup.manualSecret}</p><input name="code" inputMode="numeric" required placeholder="Code à 6 chiffres" className="w-full rounded bg-slate-800 p-3" /><button className="w-full rounded bg-emerald-500 p-3 font-bold text-slate-950">Valider</button></form>}{error && <p className="mt-4 rounded bg-red-950 p-3">{error}</p>}</div>
+}

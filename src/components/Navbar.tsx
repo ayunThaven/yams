@@ -4,6 +4,7 @@ import Image from "next/image"
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useSupabase } from "@/components/Providers"
 import { useGameProtection } from "@/contexts/GameProtectionContext"
 import { createGame } from "@/lib/createGame"
@@ -14,6 +15,7 @@ import PlusIcon from "./icons/PlusIcon"
 import { useTheme } from "next-themes"
 
 export default function Navbar() {
+  const pathname = usePathname()
   const { user, userProfile, refreshUserProfile } = useSupabase()
   const [loading, setLoading] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -32,6 +34,8 @@ export default function Navbar() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  if (pathname.startsWith('/backoffice')) return null
 
   const handleThemeToggle = () => {
     const newTheme = theme === "yams-dark" ? "yams" : "yams-dark"
@@ -287,6 +291,7 @@ export default function Navbar() {
                       Dashboard
                     </Link>
                   </li>
+                  <li><Link href="/tickets">Signaler un bug</Link></li>
                   <li>
                     <button onClick={handleLogout} disabled={loading}>
                       {loading ? "..." : "Déconnexion"}
@@ -364,6 +369,7 @@ export default function Navbar() {
                       Dashboard
                     </Link>
                   </li>
+                  <li><Link href="/tickets" onClick={() => setIsMenuOpen(false)}>Signaler un bug</Link></li>
                   <li>
                     <button onClick={handleLogout} disabled={loading}>
                       {loading ? "..." : "Déconnexion"}
