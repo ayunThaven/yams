@@ -317,12 +317,23 @@ function findBestAvailableCategory(diceValues: number[], scoreSheet: ScoreSheet,
  * Gère l'expiration du timer : choisit automatiquement le meilleur score
  * Retourne l'état du jeu mis à jour ainsi que la catégorie et le score choisis
  */
-export function handleTimerExpired(roomId: string): { gameState: GameState; category: ScoreCategory; score: number; playerName: string } | null {
+export function handleTimerExpired(roomId: string): {
+  gameState: GameState
+  category: ScoreCategory
+  score: number
+  playerName: string
+  userId: string | null
+  diceValues: number[]
+  turnNumber: number
+  totalAfter: number
+  yamsFace: number | null
+} | null {
   const game = getGameState(roomId)
   if (!game) return null
   
   const currentPlayer = game.players[game.currentPlayerIndex]
   const playerName = currentPlayer.name
+  const turnNumber = game.turnNumber
   
   // Si aucun lancer n'a été fait, simuler un lancer
   if (game.rollsLeft === 3) {
@@ -350,7 +361,12 @@ export function handleTimerExpired(roomId: string): { gameState: GameState; cate
     gameState: updatedGameState,
     category: bestCategory,
     score: scoreValue,
-    playerName
+    playerName,
+    userId: currentPlayer.userId ?? null,
+    diceValues,
+    turnNumber,
+    totalAfter: updatedGameState.players.find((player) => player.id === currentPlayer.id)?.totalScore ?? currentPlayer.totalScore,
+    yamsFace: bestCategory === 'yams' && diceValues.every((value) => value === diceValues[0]) ? diceValues[0] : null,
   }
 }
 
