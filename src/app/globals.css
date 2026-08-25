@@ -436,6 +436,11 @@ table tbody tr:hover {
   [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar { width: 8px; }
   [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar-track { background: #0f172a; border-radius: 999px; }
   [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar-thumb { background: #34d399; border-radius: 999px; }
+  /* Les deux actions de l’onglet Succès profitent de l’espace disponible,
+     sans agrandir les vignettes de médailles. */
+  .bo-shell section:has([role="radiogroup"][aria-label="Succès à attribuer"]) > .max-w-5xl {
+    max-width: 72rem;
+  }
   /* Animation de flip pour les médailles d'achievements */
   .medal-flip-scene {
     perspective: 1200px;
