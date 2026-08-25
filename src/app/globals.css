@@ -426,7 +426,9 @@ table tbody tr:hover {
   .bo-status-rejected { @apply bg-rose-500/15 text-rose-300; }
   /* Le catalogue de médailles reste compact, même avec beaucoup de succès. */
   [role="radiogroup"][aria-label="Succès à attribuer"] {
-    max-height: 11rem;
+    grid-template-columns: repeat(auto-fill, 4.5rem) !important;
+    justify-content: start;
+    max-height: 8.5rem;
     overflow-y: scroll;
     scrollbar-width: thin;
     scrollbar-color: #34d399 #0f172a;
