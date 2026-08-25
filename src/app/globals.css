@@ -424,6 +424,16 @@ table tbody tr:hover {
   .bo-status-in_progress { @apply bg-amber-500/15 text-amber-300; }
   .bo-status-resolved { @apply bg-emerald-500/15 text-emerald-300; }
   .bo-status-rejected { @apply bg-rose-500/15 text-rose-300; }
+  /* Le catalogue de médailles reste compact, même avec beaucoup de succès. */
+  [role="radiogroup"][aria-label="Succès à attribuer"] {
+    max-height: 11rem;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+    scrollbar-color: #34d399 #0f172a;
+  }
+  [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar { width: 8px; }
+  [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar-track { background: #0f172a; border-radius: 999px; }
+  [role="radiogroup"][aria-label="Succès à attribuer"]::-webkit-scrollbar-thumb { background: #34d399; border-radius: 999px; }
   /* Animation de flip pour les médailles d'achievements */
   .medal-flip-scene {
     perspective: 1200px;
