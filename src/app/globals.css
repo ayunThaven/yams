@@ -398,6 +398,32 @@ table tbody tr:hover {
 
 /* Classes utilitaires réutilisables */
 @layer components {
+  /* Console back-office : volontairement isolée du design joueur. */
+  .bo-shell { background: radial-gradient(circle at 15% -10%, rgba(16, 185, 129, .13), transparent 30rem), #08111f; }
+  .bo-panel { @apply rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-slate-950/20; }
+  .bo-panel-muted { @apply rounded-xl border border-slate-800 bg-slate-950/35; }
+  .bo-page-header { @apply mb-8 flex flex-wrap items-end justify-between gap-5; }
+  .bo-page-header h1 { @apply mt-1 text-3xl font-bold tracking-tight text-slate-50 md:text-4xl; background: none; -webkit-text-fill-color: currentColor; }
+  .bo-eyebrow { @apply text-xs font-bold uppercase tracking-[.18em] text-emerald-400; }
+  .bo-page-description { @apply mt-2 max-w-2xl text-sm leading-6 text-slate-400; }
+  .bo-page-actions { @apply flex flex-wrap gap-2; }
+  .bo-input { @apply w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20; }
+  .bo-button { @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50; }
+  .bo-button-primary { @apply bo-button bg-emerald-400 text-slate-950 hover:bg-emerald-300; }
+  .bo-button-secondary { @apply bo-button border border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-500 hover:bg-slate-800; }
+  .bo-button-danger { @apply bo-button bg-rose-950/70 text-rose-200 hover:bg-rose-900; }
+  .bo-label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400; }
+  .bo-table { @apply min-w-full text-left text-sm; }
+  .bo-table thead { @apply bg-slate-950/70 text-xs uppercase tracking-wider text-slate-400; }
+  .bo-table th { @apply px-5 py-3 font-semibold; }
+  .bo-table td { @apply px-5 py-4; }
+  .bo-table tbody tr { @apply border-t border-slate-800/80; }
+  .bo-status { @apply inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize; }
+  .bo-status-new { @apply bg-sky-500/15 text-sky-300; }
+  .bo-status-confirmed { @apply bg-violet-500/15 text-violet-300; }
+  .bo-status-in_progress { @apply bg-amber-500/15 text-amber-300; }
+  .bo-status-resolved { @apply bg-emerald-500/15 text-emerald-300; }
+  .bo-status-rejected { @apply bg-rose-500/15 text-rose-300; }
   /* Animation de flip pour les médailles d'achievements */
   .medal-flip-scene {
     perspective: 1200px;

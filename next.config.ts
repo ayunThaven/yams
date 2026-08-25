@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Empêche Next de remonter vers un package-lock parent hors du projet.
+  outputFileTracingRoot: process.cwd(),
+
   // Mode standalone pour Docker (optimise la taille de l'image)
   output: 'standalone',
 
