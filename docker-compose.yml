@@ -23,8 +23,8 @@ services:
       BACKOFFICE_TOTP_ENCRYPTION_KEY: ${BACKOFFICE_TOTP_ENCRYPTION_KEY}
       BACKOFFICE_COOKIE_SECURE: ${BACKOFFICE_COOKIE_SECURE:-true}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL}
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]

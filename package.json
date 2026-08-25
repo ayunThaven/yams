@@ -14,7 +14,6 @@
     "backoffice:bootstrap": "tsx scripts/bootstrap-backoffice.ts"
   },
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.74.0",
     "bcryptjs": "^2.4.3",

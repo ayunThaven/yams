@@ -1,27 +1,53 @@
 /**
  * Envoi d'emails (confirmation d'inscription, etc.)
  *
- * Implémentation via SendGrid API.
+ * Implémentation via Brevo API.
  * Si un jour on change de fournisseur (Resend, AWS SES, ...),
  * on pourra remplacer ce fichier sans toucher au reste de l'app.
  * 
  * Les templates d'emails utilisent MJML pour un rendu responsive et professionnel.
  */
 
-import * as sgMail from '@sendgrid/mail'
 import {
   compileConfirmationTemplate,
   compilePasswordResetTemplate,
 } from './emailTemplates/compileTemplate'
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
-const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'no-reply@yams.local'
+const BREVO_API_KEY = process.env.BREVO_API_KEY
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'no-reply@yams.local'
 
-// Initialiser SendGrid avec la clé API
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY)
-} else {
-  console.warn('⚠️ SENDGRID_API_KEY non configurée. Les emails seront simplement logués en console.')
+// Back-office emails share the Brevo transport used by player notifications.
+// The adapter keeps the back-office call site intentionally small.
+const SENDGRID_API_KEY = BREVO_API_KEY
+const SENDGRID_FROM_EMAIL = BREVO_FROM_EMAIL
+const sgMail = {
+  send: async ({ to, subject, text, html }: { to: string; from?: string; subject: string; text: string; html: string }) => sendEmail({ to, subject, text, html }),
+}
+
+async function sendEmail(params: {
+  to: string
+  subject: string
+  text: string
+  html: string
+}) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY!,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { email: BREVO_FROM_EMAIL },
+      to: [{ email: params.to }],
+      subject: params.subject,
+      textContent: params.text,
+      htmlContent: params.html,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Brevo a refusé l'envoi (${response.status}): ${await response.text()}`)
+  }
 }
 
 export async function sendConfirmationEmail(params: {
@@ -30,9 +56,9 @@ export async function sendConfirmationEmail(params: {
 }) {
   const { to, confirmationUrl } = params
 
-  // Vérifier que SendGrid est configuré
-  if (!SENDGRID_API_KEY) {
-    console.warn('⚠️ SENDGRID_API_KEY non configurée. Les emails seront simplement logués en console.')
+  // Vérifier que Brevo est configuré
+  if (!BREVO_API_KEY) {
+    console.warn('⚠️ BREVO_API_KEY non configurée. Les emails seront simplement logués en console.')
     return
   }
 
@@ -61,52 +87,9 @@ Si tu n'es pas à l'origine de cette inscription, tu peux ignorer cet email.`
   }
 
   try {
-    // Envoyer l'email via SendGrid
-    const msg = {
-      to,
-      from: SENDGRID_FROM_EMAIL,
-      subject,
-      text,
-      html,
-    }
-
-    await sgMail.send(msg)
+    await sendEmail({ to, subject, text, html })
   } catch (error) {
     console.error('❌ Erreur lors de l\'envoi de l\'email de confirmation:', error)
-    
-    // Gestion spécifique des erreurs SendGrid
-    if (error && typeof error === 'object' && 'response' in error && error.response) {
-      const sgError = error.response as { 
-        body?: { 
-          errors?: Array<{ message?: string; field?: string }> 
-        } 
-      }
-      
-      if (sgError.body?.errors) {
-        const errors = sgError.body.errors
-        console.error('❌ Erreurs SendGrid:', errors)
-        
-        // Vérifier si c'est une erreur d'identité d'expéditeur non vérifiée
-        const senderIdentityError = errors.find(
-          (e) => e.message?.includes('verified Sender Identity') || e.field === 'from'
-        )
-        
-        if (senderIdentityError) {
-          console.error('❌ ERREUR CRITIQUE: L\'adresse email d\'expéditeur n\'est pas vérifiée dans SendGrid.')
-          console.error('❌ Vérifie que SENDGRID_FROM_EMAIL correspond à une adresse vérifiée dans SendGrid.')
-          console.error('❌ Consulte: https://sendgrid.com/docs/for-developers/sending-email/sender-identity/')
-        }
-      }
-    }
-    
-    if (error instanceof Error) {
-      console.error('❌ Détails de l\'erreur:', error.message)
-      if ('code' in error) {
-        console.error('❌ Code d\'erreur:', error.code)
-      }
-    }
-    
-    // Propager l'erreur pour que la route API puisse la gérer
     throw error
   }
 }
@@ -117,9 +100,9 @@ export async function sendPasswordResetEmail(params: {
 }) {
   const { to, resetUrl } = params
 
-  // Vérifier que SendGrid est configuré
-  if (!SENDGRID_API_KEY) {
-    console.warn('⚠️ SENDGRID_API_KEY non configurée. Les emails seront simplement logués en console.')
+  // Vérifier que Brevo est configuré
+  if (!BREVO_API_KEY) {
+    console.warn('⚠️ BREVO_API_KEY non configurée. Les emails seront simplement logués en console.')
     return
   }
 
@@ -148,52 +131,9 @@ Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email.`
   }
 
   try {
-    // Envoyer l'email via SendGrid
-    const msg = {
-      to,
-      from: SENDGRID_FROM_EMAIL,
-      subject,
-      text,
-      html,
-    }
-
-    await sgMail.send(msg)
+    await sendEmail({ to, subject, text, html })
   } catch (error) {
     console.error('❌ Erreur lors de l\'envoi de l\'email de réinitialisation:', error)
-    
-    // Gestion spécifique des erreurs SendGrid
-    if (error && typeof error === 'object' && 'response' in error && error.response) {
-      const sgError = error.response as { 
-        body?: { 
-          errors?: Array<{ message?: string; field?: string }> 
-        } 
-      }
-      
-      if (sgError.body?.errors) {
-        const errors = sgError.body.errors
-        console.error('❌ Erreurs SendGrid:', errors)
-        
-        // Vérifier si c'est une erreur d'identité d'expéditeur non vérifiée
-        const senderIdentityError = errors.find(
-          (e) => e.message?.includes('verified Sender Identity') || e.field === 'from'
-        )
-        
-        if (senderIdentityError) {
-          console.error('❌ ERREUR CRITIQUE: L\'adresse email d\'expéditeur n\'est pas vérifiée dans SendGrid.')
-          console.error('❌ Vérifie que SENDGRID_FROM_EMAIL correspond à une adresse vérifiée dans SendGrid.')
-          console.error('❌ Consulte: https://sendgrid.com/docs/for-developers/sending-email/sender-identity/')
-        }
-      }
-    }
-    
-    if (error instanceof Error) {
-      console.error('❌ Détails de l\'erreur:', error.message)
-      if ('code' in error) {
-        console.error('❌ Code d\'erreur:', error.code)
-      }
-    }
-    
-    // Propager l'erreur pour que la route API puisse la gérer
     throw error
   }
 }
