@@ -4,24 +4,38 @@ import { Die } from '@/types/game'
 import { useState, useEffect } from 'react'
 
 interface DiceProps {
-  dice: Die[]
+  dice: Array<Die & { originalIndex?: number }>
   onToggleLock?: (index: number) => void
   canRoll: boolean
   isRolling?: boolean
   rollCount?: number
+  className?: string
+  dieClassName?: string
+  hideLockIndicator?: boolean
 }
 
-export default function Dice({ dice, onToggleLock, canRoll, isRolling = false, rollCount = 0 }: DiceProps) {
+export default function Dice({
+  dice,
+  onToggleLock,
+  canRoll,
+  isRolling = false,
+  rollCount = 0,
+  className = '',
+  dieClassName = '',
+  hideLockIndicator = false,
+}: DiceProps) {
   return (
-    <div className="flex gap-4 justify-center flex-wrap">
+    <div className={`flex gap-4 justify-center flex-wrap ${className}`}>
       {dice.map((die, index) => (
         <DieComponent
-          key={`${index}-${rollCount}`}
+          key={`${die.originalIndex ?? index}-${rollCount}`}
           die={die}
-          index={index}
+          index={die.originalIndex ?? index}
           onToggleLock={onToggleLock}
           canInteract={canRoll && !!onToggleLock}
           isRolling={isRolling && !die.locked}
+          className={dieClassName}
+          hideLockIndicator={hideLockIndicator}
         />
       ))}
     </div>
@@ -34,9 +48,11 @@ interface DieComponentProps {
   onToggleLock?: (index: number) => void
   canInteract: boolean
   isRolling: boolean
+  className: string
+  hideLockIndicator: boolean
 }
 
-function DieComponent({ die, index, onToggleLock, canInteract, isRolling }: DieComponentProps) {
+function DieComponent({ die, index, onToggleLock, canInteract, isRolling, className, hideLockIndicator }: DieComponentProps) {
   const [isAnimating, setIsAnimating] = useState(false)
   const [displayValue, setDisplayValue] = useState(die.value)
 
@@ -95,12 +111,13 @@ function DieComponent({ die, index, onToggleLock, canInteract, isRolling }: DieC
         ${canInteract ? 'cursor-pointer hover:shadow-xl' : 'cursor-not-allowed opacity-60'}
         ${isAnimating ? 'animate-roll' : ''}
         flex items-center justify-center
+        ${className}
       `}
       style={{
         animationDelay: `${index * 50}ms`
       }}
     >
-      {die.locked && (
+      {die.locked && !hideLockIndicator && (
         <div className="absolute -top-1 -right-1 w-6 h-6 bg-error rounded-full flex items-center justify-center text-xs z-50">
           🔒
         </div>

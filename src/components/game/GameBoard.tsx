@@ -9,6 +9,7 @@ import { GameState, ScoreCategory } from '@/types/game'
 import Dice from './Dice'
 import PlayerScoreCards from './PlayerScoreCards'
 import ActiveCategoryCard from './ActiveCategoryCard'
+import MobileGameBoard from './MobileGameBoard'
 import { getNextCategory } from '@/lib/variantLogic'
 import { getCategoryLabel } from '@/lib/categoryLabels'
 import { calculateScore } from '@/lib/yamsLogic'
@@ -106,7 +107,23 @@ export default function GameBoard({
   }, [myTurn])
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <>
+      <div className="lg:hidden">
+        <MobileGameBoard
+          gameState={gameState}
+          socket={socket}
+          systemMessages={systemMessages}
+          isRolling={isRolling}
+          rollCount={rollCount}
+          turnTimeLeft={turnTimeLeft}
+          onRollDice={onRollDice}
+          onToggleDieLock={onToggleDieLock}
+          onChooseScore={onChooseScore}
+          onLeave={onLeave}
+        />
+      </div>
+
+      <div className="hidden min-h-screen flex-col lg:flex">
       {/* Barre supérieure sticky */}
       <div className="sticky top-0 z-10 bg-base-100 shadow-md border-b border-base-300">
         <div className="container mx-auto px-4 py-3">
@@ -400,6 +417,7 @@ export default function GameBoard({
           onChooseScore={onChooseScore}
         />
       </div>
-    </div>
+      </div>
+    </>
   )
 }

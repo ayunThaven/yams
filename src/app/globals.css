@@ -322,6 +322,21 @@ table tbody tr:hover {
     }
   }
 
+  @keyframes die-kept {
+    0% {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+    70% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   @keyframes slide-up {
     0% {
       opacity: 1;
@@ -380,6 +395,10 @@ table tbody tr:hover {
 
   .animate-slide-in-bottom {
     animation: slide-in-from-bottom 0.6s ease-out forwards;
+  }
+
+  .animate-die-kept {
+    animation: die-kept 220ms ease-out both;
   }
 
   .animate-roll {
