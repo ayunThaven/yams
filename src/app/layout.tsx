@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import Navbar from "@/components/Navbar"
+import AppShell from "@/components/AppShell"
 import Providers from "@/components/Providers"
 import { GameProtectionProvider } from "@/contexts/GameProtectionContext"
 import { FlashMessageProvider } from "@/contexts/FlashMessageContext"
@@ -38,8 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <FlashMessageProvider>
             <GameProtectionProvider>
-              <Navbar />
-              <main className="max-w-6xl mx-auto p-4">{children}</main>
+              <AppShell>{children}</AppShell>
               <FlashMessages />
             </GameProtectionProvider>
           </FlashMessageProvider>
