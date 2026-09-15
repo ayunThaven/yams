@@ -140,7 +140,7 @@ export default function GameOverActions({
           {/* Notification de rematch disponible */}
           {rematchAvailable && !amIHost && (
             <div className="alert alert-info">
-              <span>🎮 L&apos;hôte a créé une nouvelle partie !</span>
+              <span>L&apos;hôte a ouvert une nouvelle table.</span>
             </div>
           )}
 
@@ -148,10 +148,10 @@ export default function GameOverActions({
           {rematchAvailable ? (
             <>
               <button onClick={joinRematch} className="btn btn-success btn-lg">
-                🔄 Rejoindre la nouvelle partie
+                Rejoindre la nouvelle partie
               </button>
               <button onClick={goToDashboard} className="btn btn-outline">
-                🏠 Retour au dashboard
+                Retour au Hall
               </button>
             </>
           ) : amIHost ? (
@@ -167,11 +167,11 @@ export default function GameOverActions({
                     Création...
                   </>
                 ) : (
-                  <>🔄 Créer une revanche</>
+                  <>Créer une revanche</>
                 )}
               </button>
               <button onClick={goToDashboard} className="btn btn-outline">
-                🏠 Retour au dashboard
+                Retour au Hall
               </button>
             </>
           ) : (
@@ -180,7 +180,7 @@ export default function GameOverActions({
                 En attente que l&apos;hôte crée une nouvelle partie...
               </div>
               <button onClick={goToDashboard} className="btn btn-outline">
-                🏠 Retour au dashboard
+                Retour au Hall
               </button>
             </>
           )}

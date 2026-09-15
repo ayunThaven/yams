@@ -36,7 +36,7 @@ export default function FinalLeaderboard({
       >
         <div className="card-body items-center text-center">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-5xl animate-bounce-celebrate">🏆</span>
+            <span className="club-winner-seal">I</span>
             <h2 className="card-title text-3xl">
               {isWinner ? 'Vous avez gagné !' : `${winner.name} a gagné !`}
             </h2>
@@ -70,11 +70,11 @@ export default function FinalLeaderboard({
                     <div className="text-2xl font-bold w-8">
                       {position !== null ? (
                         position === 1 ? (
-                          '🥇'
+                          'I'
                         ) : position === 2 ? (
-                          '🥈'
+                          'II'
                         ) : position === 3 ? (
-                          '🥉'
+                          'III'
                         ) : (
                           `${position}.`
                         )
