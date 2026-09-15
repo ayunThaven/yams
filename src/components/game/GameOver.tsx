@@ -51,13 +51,12 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
       myPlayer.totalScore === topScore
 
   return (
-    <div className="club-game-over container mx-auto p-4 max-w-4xl space-y-6">
-      {/* Titre */}
-      <div className="text-center">
+    <main className="club-game-over club-finale">
+      <header className="club-finale-intro">
         <p className="club-eyebrow">La dernière ligne est remplie</p>
-        <h1 className="text-4xl md:text-6xl font-bold">La table a rendu son verdict.</h1>
-        <p className="text-sm text-base-content/70">Partie #{gameState.roomId.slice(0, 8)}</p>
-      </div>
+        <h1>La table a rendu son verdict.</h1>
+        <p>Partie #{gameState.roomId.slice(0, 8)}</p>
+      </header>
 
       {/* Classement final */}
       <FinalLeaderboard
@@ -75,6 +74,6 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
         user={userProfile ? { id: userProfile.id } : null}
         amIHost={amIHost}
       />
-    </div>
+    </main>
   )
 }

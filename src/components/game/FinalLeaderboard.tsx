@@ -1,7 +1,4 @@
-/**
- * Composant affichant le classement final de la partie
- * Montre tous les joueurs triés par score
- */
+/** Classement de clôture d'une partie. */
 
 import { GameState } from '@/types/game'
 
@@ -12,99 +9,52 @@ interface FinalLeaderboardProps {
   isWinner: boolean
 }
 
-/**
- * Composant du classement final
- */
-export default function FinalLeaderboard({
-  gameState,
-  mySocketId,
-  winner,
-  isWinner,
-}: FinalLeaderboardProps) {
-  // Trier les joueurs : actifs par score décroissant, puis abandonnés à la fin
+export default function FinalLeaderboard({ gameState, mySocketId, winner, isWinner }: FinalLeaderboardProps) {
   const sortedPlayers = [...gameState.players].sort((a, b) => {
     if (a.abandoned && !b.abandoned) return 1
     if (!a.abandoned && b.abandoned) return -1
     return b.totalScore - a.totalScore
   })
+  const podium = sortedPlayers.filter((player) => !player.abandoned).slice(0, 3)
 
   return (
-    <div className="space-y-6">
-      {/* Bannière du gagnant */}
-      <div
-        className={`card border-2 ${isWinner ? 'border-success' : 'border-primary'} shadow-xl`}
-      >
-        <div className="card-body items-center text-center">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="club-winner-seal">I</span>
-            <h2 className="card-title text-3xl">
-              {isWinner ? 'Vous avez gagné !' : `${winner.name} a gagné !`}
-            </h2>
-          </div>
-          
-          <p className="text-xl font-bold">Score final : {winner.totalScore} points</p>
+    <section className="club-finale-results" aria-labelledby="final-results-title">
+      <div className={`club-finale-winner ${isWinner ? 'is-local-winner' : ''}`}>
+        <span className="club-winner-seal" aria-hidden="true">I</span>
+        <div>
+          <p className="club-eyebrow">Victoire</p>
+          <h2>{isWinner ? 'Vous tenez la table.' : `${winner.name} tient la table.`}</h2>
+          <p>{winner.totalScore} points au terme de la partie</p>
         </div>
       </div>
 
-      {/* Classement complet */}
-      <div className="card-border-hover">
-        <div className="card-body">
-          <h3 className="card-title">Classement final</h3>
-
-          <div className="space-y-2 mt-4">
-            {sortedPlayers.map((player, index) => {
-              const isMe = player.id === mySocketId
-              const position = !player.abandoned ? index + 1 : null
-
-              return (
-                <div
-                  key={player.id}
-                  className={`
-                    flex items-center justify-between p-4 glass rounded-lg 
-                    ${isMe ? 'bg-primary/20 border-2 border-primary' : 'bg-base-300'}
-                    ${player.abandoned ? 'opacity-60' : ''}
-                  `}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Position */}
-                    <div className="text-2xl font-bold w-8">
-                      {position !== null ? (
-                        position === 1 ? (
-                          'I'
-                        ) : position === 2 ? (
-                          'II'
-                        ) : position === 3 ? (
-                          'III'
-                        ) : (
-                          `${position}.`
-                        )
-                      ) : (
-                        <span className="text-sm">-</span>
-                      )}
-                    </div>
-
-                    {/* Nom du joueur */}
-                    <div>
-                      <span className="font-bold">{player.name}</span>
-                      {isMe && <span className="ml-2 badge badge-primary badge-sm">Vous</span>}
-                      {player.abandoned && (
-                        <span className="ml-2 text-sm text-error">(Abandonné)</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Score */}
-                  <div className="text-right">
-                    <div className="text-2xl font-bold">{player.totalScore}</div>
-                    <div className="text-xs text-base-content/60">points</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+      {podium.length > 1 && (
+        <div className="club-finale-podium" aria-label="Podium final">
+          {podium.map((player, index) => {
+            const rank = index + 1
+            return <article className={`rank-${rank} ${player.id === mySocketId ? 'is-local' : ''}`} key={player.id}>
+              <span>{rank === 1 ? 'I' : rank === 2 ? 'II' : 'III'}</span>
+              <strong>{player.id === mySocketId ? 'Vous' : player.name}</strong>
+              <b>{player.totalScore}</b><small>points</small>
+            </article>
+          })}
         </div>
+      )}
+
+      <div className="club-finale-ledger">
+        <header><p className="club-eyebrow">Résultat complet</p><h2 id="final-results-title">Classement final</h2></header>
+        <ol>
+          {sortedPlayers.map((player, index) => {
+            const rank = player.abandoned ? null : index + 1
+            return <li className={`${player.id === mySocketId ? 'is-local' : ''} ${player.abandoned ? 'is-abandoned' : ''}`} key={player.id}>
+              <span className="club-finale-rank">{rank ?? '—'}</span>
+              <span className="club-finale-player-mark">{player.name.charAt(0).toUpperCase()}</span>
+              <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A quitté la table' : rank === 1 ? 'Vainqueur' : `${rank}${rank === 1 ? 'er' : 'e'} place`}</small></p>
+              <b>{player.totalScore}<small> pts</small></b>
+            </li>
+          })}
+        </ol>
       </div>
-    </div>
+    </section>
   )
 }
-

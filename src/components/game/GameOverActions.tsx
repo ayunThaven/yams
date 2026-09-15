@@ -132,61 +132,23 @@ export default function GameOverActions({
   }
 
   return (
-    <div className="card-border-hover">
-      <div className="card-body">
-        <h3 className="card-title">Actions</h3>
-
-        <div className="flex flex-col gap-3 mt-4">
-          {/* Notification de rematch disponible */}
-          {rematchAvailable && !amIHost && (
-            <div className="alert alert-info">
-              <span>L&apos;hôte a ouvert une nouvelle table.</span>
-            </div>
-          )}
-
-          {/* Boutons */}
-          {rematchAvailable ? (
-            <>
-              <button onClick={joinRematch} className="btn btn-success btn-lg">
-                Rejoindre la nouvelle partie
-              </button>
-              <button onClick={goToDashboard} className="btn btn-outline">
-                Retour au Hall
-              </button>
-            </>
-          ) : amIHost ? (
-            <>
-              <button
-                onClick={createRematch}
-                className="btn btn-success btn-lg"
-                disabled={creatingRematch}
-              >
-                {creatingRematch ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Création...
-                  </>
-                ) : (
-                  <>Créer une revanche</>
-                )}
-              </button>
-              <button onClick={goToDashboard} className="btn btn-outline">
-                Retour au Hall
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="text-sm text-base-content/70 text-center">
-                En attente que l&apos;hôte crée une nouvelle partie...
-              </div>
-              <button onClick={goToDashboard} className="btn btn-outline">
-                Retour au Hall
-              </button>
-            </>
-          )}
-        </div>
+    <section className="club-finale-actions" aria-labelledby="final-actions-title">
+      <div>
+        <p className="club-eyebrow">Après la partie</p>
+        <h2 id="final-actions-title">{rematchAvailable ? 'Une nouvelle table vous attend.' : amIHost ? 'Une revanche ?' : 'La prochaine table se prépare.'}</h2>
+        {!rematchAvailable && !amIHost && <p>En attente que l’hôte ouvre une revanche.</p>}
       </div>
-    </div>
+      <div className="club-finale-action-buttons">
+        {rematchAvailable ? (
+          <button onClick={joinRematch} className="club-button club-button-primary">Rejoindre la revanche</button>
+        ) : amIHost ? (
+          <button onClick={createRematch} className="club-button club-button-primary" disabled={creatingRematch}>
+            {creatingRematch ? 'Préparation…' : 'Créer une revanche'}
+          </button>
+        ) : null}
+        <button onClick={goToDashboard} className="club-button club-button-secondary">Retour au Hall</button>
+      </div>
+    </section>
   )
 }
 
