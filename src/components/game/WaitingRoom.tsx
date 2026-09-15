@@ -177,7 +177,7 @@ export default function WaitingRoom({
             <div><p className="club-eyebrow">Autour de la table</p><h2 id="lobby-seats-title">Les places</h2></div>
             <span className="club-seat-count">{players.length} / {maxPlayers}</span>
           </header>
-          <div className="club-seat-grid">
+          <div className={`club-seat-grid ${maxPlayers >= 4 ? 'is-two-columns' : ''}`}>
             {players.map((player, index) => {
               const isPlayerHost = index === 0
               const isSelf = player.id === socket?.id
