@@ -197,7 +197,7 @@ export default function MobileGameBoard({
         </div>
       </section>
 
-      <MobileScoreSheet
+      <SharedScoreSheet
         players={orderedPlayers}
         currentPlayerId={currentPlayer.id}
         localPlayerId={localPlayerId}
@@ -284,7 +284,7 @@ function TurnTimer({ seconds }: { seconds: number }) {
   return <span className={`font-mono font-bold ${color}`}>{minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
 }
 
-interface MobileScoreSheetProps {
+interface SharedScoreSheetProps {
   players: PlayerGameState[]
   currentPlayerId: string
   localPlayerId: string
@@ -295,7 +295,18 @@ interface MobileScoreSheetProps {
   onRequestScore: (category: ScoreCategory) => void
 }
 
-function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice, variant, hasRolled, myTurn, onRequestScore }: MobileScoreSheetProps) {
+export function SharedScoreSheet({
+  players,
+  currentPlayerId,
+  localPlayerId,
+  currentDice,
+  variant,
+  hasRolled,
+  myTurn,
+  onRequestScore,
+  showHeader = true,
+  className = '',
+}: SharedScoreSheetProps & { showHeader?: boolean; className?: string }) {
   const renderCategory = (category: ScoreCategory, label: string) => (
     <tr key={category} className="border-b border-base-300/75">
       <th scope="row" className="sticky left-0 z-10 min-w-24 bg-base-100 px-3 py-2 text-left text-sm font-medium">{label}</th>
@@ -325,11 +336,11 @@ function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice
   )
 
   return (
-    <section className="mx-auto max-w-lg px-4 pb-4 pt-6" aria-label="Feuille de score partagée">
-      <div className="mb-3 flex items-baseline justify-between">
+    <section className={`shared-score-sheet mx-auto max-w-lg px-4 pb-4 pt-6 ${className}`} aria-label="Feuille de score partagée">
+      {showHeader && <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-base font-bold">Feuille de score</h2>
         {variant !== 'classic' && <span className="text-xs text-base-content/55">Ordre imposé</span>}
-      </div>
+      </div>}
       <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100 shadow-sm">
         <table className="w-max min-w-full border-collapse text-sm tabular-nums">
           <thead className="border-b border-base-300 bg-base-200/80">

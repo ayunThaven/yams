@@ -2,9 +2,8 @@ import { useEffect, useRef } from 'react'
 import { Socket } from 'socket.io-client'
 import { GameState, ScoreCategory } from '@/types/game'
 import Dice from './Dice'
-import PlayerScoreCards from './PlayerScoreCards'
 import ActiveCategoryCard from './ActiveCategoryCard'
-import MobileGameBoard from './MobileGameBoard'
+import MobileGameBoard, { SharedScoreSheet } from './MobileGameBoard'
 import { getNextCategory } from '@/lib/variantLogic'
 import { getCategoryLabel } from '@/lib/categoryLabels'
 import { calculateScore } from '@/lib/yamsLogic'
@@ -23,6 +22,11 @@ export default function GameBoard(props: GameBoardProps) {
   const myPlayer = gameState.players.find(player => player.id === socket.id)
   const nextCategory = gameState.variant !== 'classic' && myPlayer ? getNextCategory(gameState.variant, myPlayer.scoreSheet) : null
   const allDiceLocked = gameState.dice.every(die => die.locked)
+  const diceWithIndices = gameState.dice.map((die, originalIndex) => ({ ...die, originalIndex }))
+  const diceToRoll = diceWithIndices.filter(die => !die.locked)
+  const heldDice = diceWithIndices.filter(die => die.locked)
+  const hasRolled = gameState.rollsLeft < 3
+  const scorePlayers = [currentPlayer, ...gameState.players.filter(player => player.id !== currentPlayer.id)]
   const previousMyTurn = useRef<boolean | null>(null)
 
   useEffect(() => {
@@ -51,8 +55,21 @@ export default function GameBoard(props: GameBoardProps) {
         <section className="club-game-center">
           <div className="club-felt-table">
             <header><div><p className="club-eyebrow">{myTurn ? 'Votre lancer' : `Lancer de ${currentPlayer.name}`}</p><h1>{myTurn ? 'Faites parler les dés.' : 'La table attend.'}</h1></div><span><b>{gameState.rollsLeft}</b> lancer{gameState.rollsLeft > 1 ? 's' : ''}</span></header>
-            <div className="club-dice-stage"><Dice dice={gameState.dice} onToggleLock={myTurn ? onToggleDieLock : undefined} canRoll={myTurn && gameState.rollsLeft < 3 && gameState.rollsLeft > 0} isRolling={isRolling} rollCount={rollCount}/></div>
-            <div className="club-roll-zone">{myTurn ? <button onClick={onRollDice} disabled={gameState.rollsLeft === 0 || isRolling || allDiceLocked} className="club-roll-button"><DiceMonogram/>{isRolling ? 'Lancer en cours…' : gameState.rollsLeft === 3 ? 'Lancer les dés' : 'Relancer'}</button> : <p>En attente de {currentPlayer.name}…</p>}<small>{myTurn && gameState.rollsLeft < 3 && gameState.rollsLeft > 0 ? 'Cliquez sur un dé pour le garder.' : myTurn && gameState.rollsLeft === 0 ? 'Choisissez maintenant une ligne de score.' : ''}</small></div>
+            <div className="club-desktop-dice-groups">
+              <section className="club-dice-active" aria-label="Dés à relancer">
+                <header><span>Dés à relancer</span><small>{diceToRoll.length} disponible{diceToRoll.length > 1 ? 's' : ''}</small></header>
+                <div className="club-dice-stage">
+                  {diceToRoll.length > 0 ? <Dice dice={diceToRoll} onToggleLock={myTurn ? onToggleDieLock : undefined} canRoll={myTurn && hasRolled && gameState.rollsLeft > 0} isRolling={isRolling} rollCount={rollCount} hideLockIndicator/> : <p>Tous les dés sont gardés.</p>}
+                </div>
+              </section>
+              <section className="club-dice-held" aria-label="Dés gardés">
+                <header><span>Gardés</span><small>{heldDice.length ? 'Cliquez pour remettre un dé en jeu' : 'Choisissez les dés à conserver'}</small></header>
+                <div>
+                  {heldDice.length > 0 ? <Dice dice={heldDice} onToggleLock={myTurn ? onToggleDieLock : undefined} canRoll={myTurn && hasRolled && gameState.rollsLeft > 0} rollCount={rollCount} hideLockIndicator/> : <span>—</span>}
+                </div>
+              </section>
+            </div>
+            <div className="club-roll-zone">{myTurn ? <button onClick={onRollDice} disabled={gameState.rollsLeft === 0 || isRolling || allDiceLocked} className="club-roll-button"><DiceMonogram/>{isRolling ? 'Lancer en cours…' : gameState.rollsLeft === 3 ? 'Lancer les dés' : 'Relancer'}</button> : <p>En attente de {currentPlayer.name}…</p>}<small>{myTurn && hasRolled && gameState.rollsLeft > 0 ? 'Cliquez sur un dé pour le garder ou le remettre en jeu.' : myTurn && gameState.rollsLeft === 0 ? 'Choisissez maintenant une ligne de score.' : ''}</small></div>
           </div>
 
           {myTurn && gameState.variant !== 'classic' && nextCategory && (
@@ -62,7 +79,7 @@ export default function GameBoard(props: GameBoardProps) {
           <details className="club-activity" open={messages.length > 0}><summary><span><DotsIcon/>Activité de la table</span><small>{messages.length} événement{messages.length > 1 ? 's' : ''}</small></summary><div>{messages.length ? messages.map((message,index) => <p key={`${message}-${index}`}>{message}</p>) : <p>La table est calme pour le moment.</p>}</div></details>
         </section>
 
-        <aside className="club-score-rail"><header><p className="club-eyebrow">Votre score</p><h2>Feuille de la table</h2></header><PlayerScoreCards gameState={gameState} socket={socket} myTurn={myTurn} onChooseScore={onChooseScore} scoresOnly/></aside>
+        <aside className="club-score-rail"><header><p className="club-eyebrow">Feuille partagée</p><h2>Scores de la table</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Toutes les feuilles sont consultables'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={onChooseScore} showHeader={false} className="club-desktop-score-sheet"/></aside>
       </main>
     </div>
   </>
