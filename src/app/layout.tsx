@@ -18,18 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                try {
-                  // next-themes utilise 'theme' comme clé par défaut
-                  const stored = localStorage.getItem('theme');
-                  const theme = stored && (stored === 'yams' || stored === 'yams-dark') 
-                    ? stored 
-                    : 'yams';
-                  document.documentElement.setAttribute('data-theme', theme);
-                } catch (e) {
-                  document.documentElement.setAttribute('data-theme', 'yams');
-                }
-              })();
+              document.documentElement.setAttribute('data-theme', 'yams-dark');
             `,
           }}
         />
