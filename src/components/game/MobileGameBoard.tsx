@@ -143,7 +143,7 @@ export default function MobileGameBoard({
                     isRolling={isRolling}
                     rollCount={rollCount}
                     hideLockIndicator
-                    className="h-full w-full"
+                    className="club-mobile-active-dice h-full w-full"
                     dieClassName="h-[4.6rem] w-[4.6rem] rounded-2xl border-2 text-3xl shadow-md active:scale-95"
                   />
                 )}
@@ -188,7 +188,7 @@ export default function MobileGameBoard({
               onToggleLock={myTurn && hasRolled ? onToggleDieLock : undefined}
               canRoll={myTurn && hasRolled && gameState.rollsLeft > 0}
               hideLockIndicator
-              className="flex-1 justify-end gap-2"
+              className="club-mobile-held-dice flex-1 justify-end gap-2"
               dieClassName="h-14 w-14 animate-die-kept rounded-xl border-2 text-2xl shadow-sm active:scale-95"
             />
           ) : (
