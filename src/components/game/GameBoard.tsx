@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Socket } from 'socket.io-client'
 import { GameState, ScoreCategory } from '@/types/game'
 import Dice from './Dice'
@@ -28,6 +28,7 @@ export default function GameBoard(props: GameBoardProps) {
   const hasRolled = gameState.rollsLeft < 3
   const scorePlayers = [currentPlayer, ...gameState.players.filter(player => player.id !== currentPlayer.id)]
   const previousMyTurn = useRef<boolean | null>(null)
+  const [pendingCategory, setPendingCategory] = useState<ScoreCategory | null>(null)
 
   useEffect(() => {
     if (previousMyTurn.current === false && myTurn) window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -36,6 +37,13 @@ export default function GameBoard(props: GameBoardProps) {
 
   const time = turnTimeLeft === null ? null : `${Math.floor(turnTimeLeft / 60)}:${String(turnTimeLeft % 60).padStart(2, '0')}`
   const messages = systemMessages.slice(-(gameState.players.length * 3)).reverse()
+  const pendingScore = pendingCategory && hasRolled ? calculateScore(pendingCategory, gameState.dice.map(die => die.value)) : null
+
+  const confirmScore = () => {
+    if (!pendingCategory) return
+    onChooseScore(pendingCategory)
+    setPendingCategory(null)
+  }
 
   return <>
     <div className="lg:hidden"><MobileGameBoard {...props}/></div>
@@ -79,8 +87,9 @@ export default function GameBoard(props: GameBoardProps) {
           <details className="club-activity" open={messages.length > 0}><summary><span><DotsIcon/>Activité de la table</span><small>{messages.length} événement{messages.length > 1 ? 's' : ''}</small></summary><div>{messages.length ? messages.map((message,index) => <p key={`${message}-${index}`}>{message}</p>) : <p>La table est calme pour le moment.</p>}</div></details>
         </section>
 
-        <aside className="club-score-rail"><header><p className="club-eyebrow">Feuille partagée</p><h2>Scores de la table</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Toutes les feuilles sont consultables'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={onChooseScore} showHeader={false} className="club-desktop-score-sheet"/></aside>
+        <aside className="club-score-rail"><header><p className="club-eyebrow">Feuille partagée</p><h2>Scores de la table</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Toutes les feuilles sont consultables'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={setPendingCategory} showHeader={false} className="club-desktop-score-sheet"/></aside>
       </main>
+      {pendingCategory && pendingScore !== null && <div className="club-score-confirm-layer" role="dialog" aria-modal="true" aria-labelledby="desktop-score-confirmation-title"><button className="club-score-confirm-backdrop" aria-label="Annuler l’inscription du score" onClick={() => setPendingCategory(null)}/><section className="club-score-confirmation"><p className="club-eyebrow">Confirmer le score</p><h2 id="desktop-score-confirmation-title">Inscrire <strong>{pendingScore}</strong> en {getCategoryLabel(pendingCategory)} ?</h2><p>Cette ligne sera définitivement ajoutée à votre feuille.</p><footer><button type="button" className="club-button club-button-quiet" onClick={() => setPendingCategory(null)}>Annuler</button><button type="button" className="club-button club-button-primary" onClick={confirmScore}>Valider {pendingScore} points</button></footer></section></div>}
     </div>
   </>
 }
