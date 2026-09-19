@@ -44,6 +44,12 @@ export default function CreateGame() {
     } catch { setError('La table n’a pas pu être ouverte. Réessayez.'); setLoading(false) }
   }
 
+  const compactVariantOptions = variants.map((variant, index) => <label key={variant} className={`club-compact-variant ${selected === variant ? 'is-selected' : ''}`}>
+    <input type="radio" name="compact-variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
+    <span>0{index + 1}</span>
+    <strong>{VARIANT_NAMES[variant]}</strong>
+  </label>)
+
   const dialog = open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
       <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="variant-title" onMouseDown={e => e.stopPropagation()}>
         <header><div><p className="club-eyebrow">Nouvelle table</p><h2 id="variant-title">Choisissez vos règles</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
@@ -57,7 +63,13 @@ export default function CreateGame() {
     </div>
 
   return <>
-    <button className="club-button club-button-primary" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
+    <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
+    <div className="club-create-inline">
+      <p className="club-eyebrow">Choisissez vos règles</p>
+      <div className="club-compact-variants" role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
+      {error && <p className="club-form-error" role="alert">{error}</p>}
+      <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button>
+    </div>
     {mounted && dialog ? createPortal(dialog, document.body) : null}
   </>
 }
