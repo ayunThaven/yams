@@ -22,8 +22,10 @@ export default function JoinGame() {
   }
 
   return <div className="club-join-form">
+    <p className="club-eyebrow">Choisissez votre accès</p>
     {error && <p className="club-form-error" role="alert">{error}</p>}
-    <div><button type="button" onClick={paste} aria-label="Coller le code"><CopyIcon/></button><input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()} placeholder="CODE DE LA TABLE" aria-label="Code de la partie"/><button type="button" onClick={join} disabled={loading || !code.trim()} aria-label="Rejoindre la partie">{loading ? <span className="loading loading-spinner loading-sm"/> : <ArrowRightIcon/>}</button></div>
-    <button type="button" className="club-button club-button-secondary" disabled>Parties publiques · bientôt disponible</button>
+    <div className="club-join-code"><button type="button" onClick={paste} aria-label="Coller le code"><CopyIcon/></button><input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()} placeholder="CODE DE LA TABLE" aria-label="Code de la partie"/><button type="button" onClick={join} disabled={loading || !code.trim()} aria-label="Rejoindre la partie">{loading ? <span className="loading loading-spinner loading-sm"/> : <ArrowRightIcon/>}</button></div>
+    <p className="club-join-or" aria-hidden="true"><span>ou</span></p>
+    <button type="button" className="club-button club-button-secondary club-public-lobbies" disabled><span><small>Parties publiques</small><strong>0 lobby ouvert</strong></span><small>Prochainement</small></button>
   </div>
 }
