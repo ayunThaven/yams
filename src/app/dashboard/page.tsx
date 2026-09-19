@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
     <section className="club-hall-grid" aria-label="Commencer une partie">
       <article className="club-panel club-start-card club-create-card"><span className="club-card-index">01</span><div><p className="club-eyebrow">Nouvelle table</p><h2>Ouvrir une partie</h2><p>Classique, montante ou descendante. Vous choisissez le rythme.</p></div><CreateGame/></article>
-      <article className="club-panel club-start-card"><span className="club-card-index">02</span><div><p className="club-eyebrow">Trouver une table</p><h2>Rejoindre la table</h2><p>Entrez le code transmis par l’hôte pour prendre place.</p></div><JoinGame/></article>
+      <article className="club-panel club-start-card club-join-card"><span className="club-card-index">02</span><div><p className="club-eyebrow">Trouver une table</p><h2>Rejoindre la table</h2><p>Entrez le code transmis par l’hôte pour prendre place.</p></div><JoinGame/></article>
     </section>
 
     <section className="club-hall-secondary">

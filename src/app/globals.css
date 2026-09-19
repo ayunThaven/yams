@@ -858,6 +858,7 @@ body {
 .club-start-card > div:first-of-type > p:not(.club-eyebrow) { margin-top: 0; }
 .club-start-card > .btn, .club-start-card > div:last-child { position: relative; z-index: 2; align-self: flex-start; }
 .club-start-card > .btn { min-height: 52px; padding-inline: 1.25rem; }
+.club-join-card { justify-content: flex-start; gap: 1.5rem; }
 .club-create-inline { display: none; }
 .club-hall-secondary { margin-top: 1rem; display: grid; grid-template-columns: .8fr 1.2fr; gap: 1rem; }
 .club-player-summary { padding: 1.5rem; display: flex; flex-direction: column; }
