@@ -666,6 +666,9 @@ body {
 .club-button-primary:hover { background: var(--club-wine-hover); border-color: var(--club-wine-hover); }
 .club-link-button:hover { background: rgba(244,235,221,.07); }
 .club-button-secondary { border-color: var(--club-border-strong); background: transparent; }
+.club-button:disabled { cursor: not-allowed; border-color: var(--club-border); background: rgba(244,235,221,.04); color: var(--club-muted); box-shadow: none; pointer-events: none; }
+.club-button-primary:disabled { border-color: #5f353c; background: #5f353c; color: #d3c4b7; }
+.club-button-secondary:disabled { border-color: var(--club-border); background: rgba(244,235,221,.025); color: var(--club-muted); }
 
 .club-shell { min-height: 100vh; }
 .club-rail {
