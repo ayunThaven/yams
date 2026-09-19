@@ -312,9 +312,10 @@ export function SharedScoreSheet({
       <th scope="row" className="sticky left-0 z-10 min-w-24 bg-base-100 px-3 py-2 text-left text-sm font-medium">{label}</th>
       {players.map((player) => {
         const isLocalPlayer = player.id === localPlayerId
+        const isActivePlayer = player.id === currentPlayerId
         const isAvailable = player.scoreSheet[category] === null
         const canChoose = isLocalPlayer && myTurn && hasRolled && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
-        const potential = hasRolled && isLocalPlayer && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
+        const potential = hasRolled && isActivePlayer && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
           ? calculateScore(category, currentDice)
           : null
         const isForcedCategory = isLocalPlayer && variant !== 'classic' && getNextCategory(variant, player.scoreSheet) === category
