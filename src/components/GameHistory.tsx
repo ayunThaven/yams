@@ -41,7 +41,11 @@ function formatDate(date: string) {
 function matchOutcome(game: Game, userId?: string, email?: string) {
   const player = game.players_scores?.find((item) => item.user_id === userId)
   const abandoned = player?.abandoned ?? false
-  const won = game.winner === email || (player && game.winner === player.name)
+  const activePlayers = game.players_scores?.filter((item) => !item.abandoned) ?? []
+  const winningScore = activePlayers.length > 0 ? Math.max(...activePlayers.map((item) => item.score)) : null
+  const wonFromFinalScores = !!player && !abandoned && winningScore !== null && player.score === winningScore
+  const wonFromWinnerName = activePlayers.length === 0 && (game.winner === email || game.winner === player?.name)
+  const won = wonFromFinalScores || wonFromWinnerName
 
   if (abandoned) return { label: 'Abandonnée', tone: 'abandoned', player }
   if (won) return { label: 'Victoire', tone: 'won', player }
