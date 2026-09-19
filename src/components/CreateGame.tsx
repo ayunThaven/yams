@@ -8,7 +8,7 @@ import { useFlashMessage } from '@/contexts/FlashMessageContext'
 import { createGame } from '@/lib/createGame'
 import { GameVariant } from '@/types/game'
 import { VARIANT_DESCRIPTIONS, VARIANT_NAMES } from '@/lib/variantLogic'
-import { CloseIcon, PlusCircleIcon } from './icons/ClubIcons'
+import { ChevronDownIcon, CloseIcon, PlusCircleIcon } from './icons/ClubIcons'
 
 const variants: GameVariant[] = ['classic', 'descending', 'ascending']
 
@@ -21,6 +21,7 @@ export default function CreateGame() {
   const [selected, setSelected] = useState<GameVariant>('classic')
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [compactPickerOpen, setCompactPickerOpen] = useState(false)
 
   useEffect(() => setMounted(true), [])
 
@@ -66,10 +67,17 @@ export default function CreateGame() {
     <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
     <div className="club-create-inline">
       <p className="club-eyebrow">Choisissez vos règles</p>
-      <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'select' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
-      <select className="club-compact-select" value={selected} onChange={event => setSelected(event.target.value as GameVariant)} aria-label="Choisissez la variante">
-        {variants.map(variant => <option key={variant} value={variant}>{VARIANT_NAMES[variant]}</option>)}
-      </select>
+      <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'picker' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
+      <div className={`club-compact-picker ${compactPickerOpen ? 'is-open' : ''}`}>
+        <button type="button" className="club-compact-select" aria-expanded={compactPickerOpen} aria-haspopup="listbox" aria-controls="compact-variant-list" onClick={() => setCompactPickerOpen(value => !value)}>
+          <span><small>Variante</small><strong>{VARIANT_NAMES[selected]}</strong></span><ChevronDownIcon/>
+        </button>
+        {compactPickerOpen && <div id="compact-variant-list" className="club-compact-select-menu" role="listbox" aria-label="Variantes disponibles">
+          {variants.map((variant, index) => <button type="button" key={variant} role="option" aria-selected={selected === variant} className={selected === variant ? 'is-selected' : ''} onClick={() => { setSelected(variant); setCompactPickerOpen(false) }}>
+            <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i aria-hidden="true"/>
+          </button>)}
+        </div>}
+      </div>
       {error && <p className="club-form-error" role="alert">{error}</p>}
       <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button>
     </div>
