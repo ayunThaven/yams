@@ -24,6 +24,6 @@ export default function JoinGame() {
   return <div className="club-join-form">
     {error && <p className="club-form-error" role="alert">{error}</p>}
     <div><button type="button" onClick={paste} aria-label="Coller le code"><CopyIcon/></button><input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()} placeholder="CODE DE LA TABLE" aria-label="Code de la partie"/><button type="button" onClick={join} disabled={loading || !code.trim()} aria-label="Rejoindre la partie">{loading ? <span className="loading loading-spinner loading-sm"/> : <ArrowRightIcon/>}</button></div>
-    <button type="button" className="club-public-games-button" disabled><span>Parties publiques</span><small>Bientôt disponible</small></button>
+    <button type="button" className="club-button club-button-secondary" disabled>Parties publiques · bientôt disponible</button>
   </div>
 }
