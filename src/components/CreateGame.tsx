@@ -66,7 +66,7 @@ export default function CreateGame() {
     <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
     <div className="club-create-inline">
       <p className="club-eyebrow">Choisissez vos règles</p>
-      <div className="club-compact-variants" role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
+      <div className="club-compact-variants" data-variant-count={variants.length} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
       {error && <p className="club-form-error" role="alert">{error}</p>}
       <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button>
     </div>
