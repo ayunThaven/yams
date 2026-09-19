@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createPortal } from 'react-dom'
 import { useSupabase } from './Providers'
 import { useFlashMessage } from '@/contexts/FlashMessageContext'
 import { createGame } from '@/lib/createGame'
@@ -19,6 +20,17 @@ export default function CreateGame() {
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<GameVariant>('classic')
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!open) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [open])
 
   async function create() {
     if (!user) return router.push('/login')
@@ -32,9 +44,7 @@ export default function CreateGame() {
     } catch { setError('La table n’a pas pu être ouverte. Réessayez.'); setLoading(false) }
   }
 
-  return <>
-    <button className="club-button club-button-primary" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
-    {open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
+  const dialog = open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
       <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="variant-title" onMouseDown={e => e.stopPropagation()}>
         <header><div><p className="club-eyebrow">Nouvelle table</p><h2 id="variant-title">Choisissez vos règles</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
         {error && <p className="club-form-error" role="alert">{error}</p>}
@@ -44,6 +54,10 @@ export default function CreateGame() {
         </label>)}</div>
         <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button></footer>
       </section>
-    </div>}
+    </div>
+
+  return <>
+    <button className="club-button club-button-primary" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
+    {mounted && dialog ? createPortal(dialog, document.body) : null}
   </>
 }
