@@ -18,7 +18,7 @@ function AchievementMedal({ item, onOpen, compact = false }: { item: Achievement
   const unlocked = Boolean(item.unlocked_at)
   const hidden = !unlocked && achievement.rarity === 'Crystal'
   return <button type="button" className={`club-achievement-medal ${unlocked ? 'is-unlocked' : 'is-locked'} ${compact ? 'is-compact' : ''}`} onClick={() => onOpen({ ...achievement, unlocked, unlockedAt: item.unlocked_at })}>
-    <span className="club-medal-art"><Image src={achievement.image_path} alt="" width={96} height={96} className={unlocked ? '' : 'grayscale'}/></span>
+    <span className="club-medal-art"><Image src={achievement.image_path} alt="" width={96} height={96}/></span>
     {!compact && <span className="club-medal-copy"><strong>{hidden ? 'Mystère' : achievement.name}</strong><small>{unlocked ? rarityLabel[achievement.rarity] : 'À découvrir'}</small></span>}
   </button>
 }
@@ -87,7 +87,7 @@ export default function RecentAchievements() {
     {preview && <div className="club-dialog-layer club-achievement-detail-layer" role="presentation" onMouseDown={() => setPreview(null)}>
       <section className="club-achievement-detail" role="dialog" aria-modal="true" aria-labelledby="achievement-title" onMouseDown={event => event.stopPropagation()}>
         <button className="club-icon-button club-detail-close" onClick={() => setPreview(null)} aria-label="Fermer"><CloseIcon/></button>
-        <div className={`club-detail-medal ${preview.unlocked ? 'is-unlocked' : 'is-locked'}`}><Image src={preview.image_path} alt="" width={260} height={260} className={preview.unlocked ? '' : 'grayscale'}/></div>
+        <div className={`club-detail-medal ${preview.unlocked ? 'is-unlocked' : 'is-locked'}`}><Image src={preview.image_path} alt="" width={260} height={260}/></div>
         <p className="club-eyebrow">{preview.unlocked ? rarityLabel[preview.rarity] : 'Succès à découvrir'}</p>
         <h2 id="achievement-title">{!preview.unlocked && preview.rarity === 'Crystal' ? 'Mystère' : preview.name}</h2>
         <p>{!preview.unlocked && preview.rarity === 'Crystal' ? 'Continuez à jouer pour révéler cette médaille.' : preview.description}</p>
