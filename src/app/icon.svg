@@ -1,4 +1,16 @@
-<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M10 0H0V10H10V0ZM3 4C3.55228 4 4 3.55228 4 3C4 2.44772 3.55228 2 3 2C2.44772 2 2 2.44772 2 3C2 3.55228 2.44772 4 3 4ZM8 7C8 7.55228 7.55228 8 7 8C6.44772 8 6 7.55228 6 7C6 6.44772 6.44772 6 7 6C7.55228 6 8 6.44772 8 7Z" fill="#C08A5B"/>
-  <path d="M6 16V12H12V6H16V16H6Z" fill="#C08A5B"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="32 32 192 192" role="img" aria-labelledby="title">
+  <title id="title">Yams — symbole</title>
+  <g transform="rotate(-9 128 128)">
+    <rect x="62" y="62" width="146" height="146" rx="31" fill="#8E2F3F"/>
+    <circle cx="98" cy="98" r="10" fill="#F4EBDD" opacity=".9"/>
+    <circle cx="172" cy="172" r="10" fill="#F4EBDD" opacity=".9"/>
+  </g>
+  <g transform="rotate(5 128 128)">
+    <rect x="48" y="47" width="160" height="160" rx="35" fill="#F4EBDD" stroke="#C08A5B" stroke-width="7"/>
+    <circle cx="84" cy="83" r="12" fill="#8E2F3F"/>
+    <circle cx="172" cy="83" r="12" fill="#8E2F3F"/>
+    <circle cx="128" cy="127" r="14" fill="#C08A5B"/>
+    <circle cx="84" cy="171" r="12" fill="#8E2F3F"/>
+    <circle cx="172" cy="171" r="12" fill="#8E2F3F"/>
+  </g>
 </svg>
