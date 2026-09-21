@@ -73,7 +73,7 @@ export default function RecentAchievements() {
     {loading && <div className="club-achievements-state"><span className="loading loading-spinner"/>Chargement de vos succès…</div>}
     {!loading && error && <p className="club-form-error">{error}</p>}
     {!loading && !error && items.length === 0 && <div className="club-achievements-empty"><span>Votre vitrine est encore vide.</span><small>Les premières médailles viendront avec vos parties.</small></div>}
-    {!loading && !error && items.length > 0 && <div className="club-achievement-strip">{items.slice(0, 5).map(item => <AchievementMedal key={item.id} item={item} onOpen={setPreview} compact/>)}<button className="club-achievement-more" onClick={openCollection} aria-label="Voir tous les succès">+</button></div>}
+    {!loading && !error && items.length > 0 && <div className="club-achievement-strip">{items.slice(0, 5).map(item => <AchievementMedal key={item.id} item={item} onOpen={setPreview} compact/>)}</div>}
 
     {collectionOpen && <div className="club-dialog-layer" role="presentation" onMouseDown={() => setCollectionOpen(false)}>
       <section className="club-collection-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-title" onMouseDown={event => event.stopPropagation()}>
