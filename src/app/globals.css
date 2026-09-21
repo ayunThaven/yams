@@ -1008,6 +1008,7 @@ body {
 .club-felt-table h1 { font-size: clamp(2.2rem,4vw,4.3rem); line-height: .95; }
 .club-felt-table > header > span { min-width: 88px; padding: .7rem; border: 1px solid rgba(244,235,221,.14); border-radius: .7rem; color: var(--club-muted); text-align: center; font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; }
 .club-felt-table > header b { display: block; color: var(--club-ivory); font: 600 1.55rem Fraunces,serif; }
+@media (min-width: 1024px) { .club-felt-table { padding-top: clamp(1.25rem, 1.75vw, 1.75rem); } }
 .club-dice-stage { padding-block: 2rem; }
 .club-dice-stage > div { gap: clamp(.8rem,2vw,1.4rem); }
 .club-dice-stage button { width: clamp(76px,7vw,104px) !important; height: clamp(76px,7vw,104px) !important; border: 1px solid rgba(18,16,15,.22) !important; border-radius: 1rem !important; background: var(--club-ivory) !important; color: var(--club-ink) !important; box-shadow: 0 14px 25px rgba(0,0,0,.3) !important; opacity: 1 !important; }
