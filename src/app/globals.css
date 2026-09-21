@@ -951,13 +951,13 @@ body {
 @media (prefers-reduced-motion: reduce) { .club-history-spinner { animation: none; } .club-history-row { transition: none; } }
 @media (max-width: 720px) {
   .club-history-columns { display: none; }
-  .club-history-row { grid-template-columns: 1fr auto; grid-template-areas: 'date score' 'variant result'; gap: .45rem .85rem; min-height: 78px; padding: .85rem .1rem; }
+  .club-history-row { grid-template-columns: 1fr auto; grid-template-areas: 'date score' 'variant result'; gap: .45rem .85rem; min-height: 78px; padding: .85rem .75rem; }
   .club-history-date { grid-area: date; min-width: 0; }
   .club-history-date time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .club-history-variant { grid-area: variant; }
   .club-history-score { grid-area: score; justify-self: end; }
   .club-history-result { grid-area: result; justify-self: end; max-width: 11rem; }
-  .club-history-note { margin-left: .1rem; margin-right: .1rem; }
+  .club-history-note { margin-left: .75rem; margin-right: .75rem; }
 }
 
 .club-auth-page { min-height: calc(100vh - 78px); max-width: 1180px; margin: 0 auto; padding: clamp(2rem,6vw,6rem) 1.2rem; display: grid; grid-template-columns: minmax(0,1fr) minmax(360px,440px); gap: clamp(3rem,8vw,8rem); align-items: center; }
