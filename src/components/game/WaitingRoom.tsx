@@ -186,7 +186,7 @@ export default function WaitingRoom({
                   <div className="club-seat-avatar">
                     {player.avatar ? <Image src={player.avatar} alt="" width={48} height={48} unoptimized /> : <span>{player.name.charAt(0).toUpperCase()}</span>}
                   </div>
-                  <div className="club-seat-name"><strong>{isSelf ? 'Vous' : player.name}</strong><small>{isPlayerHost ? 'Hôte' : player.ready ? 'Présence confirmée' : 'En attente'}</small></div>
+                  <div className="club-seat-name"><strong>{isSelf ? 'Vous' : player.name}</strong><small>{isPlayerHost ? 'Hôte' : player.ready ? 'Prêt(e)' : 'En attente'}</small></div>
                   <span className="club-seat-mark" aria-label={isPlayerHost ? 'Hôte' : player.ready ? 'Prêt' : 'En attente'}>{isPlayerHost ? 'H' : player.ready ? '✓' : '·'}</span>
                 </article>
               )
@@ -206,7 +206,7 @@ export default function WaitingRoom({
           </button>
         ) : (
           <button type="button" className="club-button club-button-primary" onClick={() => socket?.emit('player_ready', uuid)} disabled={players.length < 2 || Boolean(myReady) || preGameCountdown !== null}>
-            {preGameCountdown !== null ? 'Départ imminent…' : myReady ? 'Présence confirmée' : 'Je suis prêt'}
+            {preGameCountdown !== null ? 'Départ imminent…' : myReady ? 'Prêt(e)' : 'Je suis prêt'}
           </button>
         )}
         <button type="button" className="club-button club-button-quiet" onClick={onLeave}>Quitter la table</button>
