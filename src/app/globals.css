@@ -915,6 +915,7 @@ body {
 .club-profile-stack .stat { border-radius: .75rem; border: 1px solid var(--club-border); background: rgba(8,7,7,.24) !important; }
 .club-profile-stack .stat-value { font-family: Fraunces,serif; font-weight: 600; }
 .club-profile-stack .avatar > div { border-color: var(--club-copper) !important; }
+@media (max-width: 820px) { .club-page, .club-profile-stack, .club-profile-stack > * { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; } .club-profile-stack .card-body, .club-profile-stack .flex-1 { min-width: 0; } }
 
 /* Registre des parties : une feuille de table, sans tableau SaaS ni cartes empilées. */
 .club-history-panel { overflow: hidden; padding: clamp(1.1rem, 2.5vw, 1.8rem); }
