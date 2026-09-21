@@ -9,6 +9,9 @@ import FlashMessages from "@/components/FlashMessages"
 export const metadata: Metadata = {
   title: "Yams Tour par Tour",
   description: "Jeu de Yams en temps réel avec Next.js et Supabase",
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

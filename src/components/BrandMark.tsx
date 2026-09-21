@@ -2,15 +2,9 @@ import Link from 'next/link'
 
 export function DiceMonogram({ className = '' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M24 3 42 13.5v21L24 45 6 34.5v-21L24 3Z" fill="currentColor" opacity=".16"/>
-      <path d="m24 3 18 10.5-18 10.4L6 13.5 24 3Zm0 20.9V45m18-31.5v21L24 45 6 34.5v-21" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-      <circle cx="24" cy="13" r="2" fill="currentColor"/>
-      <circle cx="14" cy="21" r="2" fill="currentColor"/>
-      <circle cx="19" cy="33" r="2" fill="currentColor"/>
-      <circle cx="34" cy="21" r="2" fill="currentColor"/>
-      <circle cx="29" cy="33" r="2" fill="currentColor"/>
-      <circle cx="36" cy="29" r="2" fill="currentColor"/>
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path fillRule="evenodd" clipRule="evenodd" d="M10 0H0V10H10V0ZM3 4C3.55228 4 4 3.55228 4 3C4 2.44772 3.55228 2 3 2C2.44772 2 2 2.44772 2 3C2 3.55228 2.44772 4 3 4ZM8 7C8 7.55228 7.55228 8 7 8C6.44772 8 6 7.55228 6 7C6 6.44772 6.44772 6 7 6C7.55228 6 8 6.44772 8 7Z" fill="currentColor"/>
+      <path d="M6 16V12H12V6H16V16H6Z" fill="currentColor"/>
     </svg>
   )
 }
