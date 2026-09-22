@@ -26,7 +26,9 @@ export default function GameBoard(props: GameBoardProps) {
   const diceToRoll = diceWithIndices.filter(die => !die.locked)
   const heldDice = diceWithIndices.filter(die => die.locked)
   const hasRolled = gameState.rollsLeft < 3
-  const scorePlayers = [currentPlayer, ...gameState.players.filter(player => player.id !== currentPlayer.id)]
+  const scorePlayers = myPlayer
+    ? [myPlayer, ...gameState.players.filter(player => player.id !== myPlayer.id)]
+    : gameState.players
   const previousMyTurn = useRef<boolean | null>(null)
   const [pendingCategory, setPendingCategory] = useState<ScoreCategory | null>(null)
 
