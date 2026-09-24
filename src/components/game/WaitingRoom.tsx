@@ -6,7 +6,7 @@ import { Socket } from 'socket.io-client'
 import { GameVariant } from '@/types/game'
 import { VARIANT_NAMES } from '@/lib/variantLogic'
 import { DiceMonogram } from '@/components/BrandMark'
-import { ClockIcon, CopyIcon, PlusCircleIcon } from '@/components/icons/ClubIcons'
+import { ChevronDownIcon, ClockIcon, CopyIcon, PlusCircleIcon } from '@/components/icons/ClubIcons'
 
 type Player = { id: string; name: string; avatar?: string; ready?: boolean }
 
@@ -43,7 +43,9 @@ export default function WaitingRoom({
   const [maxPlayers, setMaxPlayers] = useState(initialMaxPlayers)
   const [updatingMaxPlayers, setUpdatingMaxPlayers] = useState(false)
   const [capacityError, setCapacityError] = useState('')
+  const [capacityPickerOpen, setCapacityPickerOpen] = useState(false)
   const messagesRef = useRef<HTMLDivElement>(null)
+  const capacityPickerRef = useRef<HTMLDivElement>(null)
   const countdownStartSoundRef = useRef<HTMLAudioElement | null>(null)
   const countdownBeepSoundRef = useRef<HTMLAudioElement | null>(null)
   const previousCountdownRef = useRef<number | null>(null)
@@ -61,6 +63,24 @@ export default function WaitingRoom({
       socket.off('max_players_updated', handleMaxPlayersUpdated)
     }
   }, [socket, onMaxPlayersChange])
+
+  useEffect(() => {
+    if (!capacityPickerOpen) return
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!capacityPickerRef.current?.contains(event.target as Node)) setCapacityPickerOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCapacityPickerOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [capacityPickerOpen])
 
   useEffect(() => {
     if (messagesRef.current) messagesRef.current.scrollTop = 0
@@ -88,13 +108,33 @@ export default function WaitingRoom({
   }, [preGameCountdown])
 
   const copyGameId = async () => {
+    let didCopy = false
     try {
-      await navigator.clipboard.writeText(uuid)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(uuid)
+        didCopy = true
+      }
+    } catch { /* Fall back to the legacy clipboard API below. */ }
+
+    if (!didCopy) {
+      const textarea = document.createElement('textarea')
+      textarea.value = uuid
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      textarea.style.pointerEvents = 'none'
+      document.body.appendChild(textarea)
+      textarea.select()
+      textarea.setSelectionRange(0, textarea.value.length)
+      try {
+        didCopy = document.execCommand('copy')
+      } finally {
+        document.body.removeChild(textarea)
+      }
     }
+
+    setCopied(didCopy)
+    if (didCopy) window.setTimeout(() => setCopied(false), 2000)
   }
 
   const nonHostPlayers = players.slice(1)
@@ -157,19 +197,36 @@ export default function WaitingRoom({
 
           <dl className="club-lobby-details">
             <div><dt>Variante</dt><dd>{variantLoading ? 'Chargement…' : VARIANT_NAMES[variant]}</dd></div>
-            <div><dt>Places</dt><dd>{players.length} <span>/</span> {maxPlayers}</dd></div>
-            <div><dt>Départ</dt><dd>À partir de 2 joueurs</dd></div>
           </dl>
 
           {isHost && (
-            <label className="club-capacity-control">
-              <span>Capacité de la table</span>
-              <select value={maxPlayers} onChange={(event) => handleMaxPlayersChange(Number(event.target.value))} disabled={updatingMaxPlayers || preGameCountdown !== null}>
-                {[2, 3, 4, 5, 6, 7, 8].map((count) => <option key={count} value={count}>{count} joueurs</option>)}
-              </select>
-            </label>
+            <div className={`club-capacity-picker ${capacityPickerOpen ? 'is-open' : ''}`} ref={capacityPickerRef}>
+              <button type="button" aria-expanded={capacityPickerOpen} aria-haspopup="listbox" aria-controls="capacity-options" onClick={() => setCapacityPickerOpen((open) => !open)} disabled={updatingMaxPlayers || preGameCountdown !== null}>
+                <span>Capacité de la table</span>
+                <span><strong>{maxPlayers} joueurs</strong><ChevronDownIcon width={16} height={16} /></span>
+              </button>
+              {capacityPickerOpen && <div id="capacity-options" className="club-capacity-options" role="listbox" aria-label="Capacité de la table">
+                {[2, 3, 4, 5, 6, 7, 8].map((count) => <button key={count} type="button" role="option" aria-selected={count === maxPlayers} className={count === maxPlayers ? 'is-selected' : ''} onClick={() => { handleMaxPlayersChange(count); setCapacityPickerOpen(false) }} disabled={count < players.length || updatingMaxPlayers || preGameCountdown !== null}>
+                  <span>{count} joueurs</span><i aria-hidden="true" />
+                </button>)}
+              </div>}
+            </div>
           )}
           {capacityError && <p className="club-capacity-error" role="alert">{capacityError}</p>}
+
+          <section className="club-lobby-action" aria-label="Actions de la table">
+            <div><p className="club-eyebrow">Prochaine étape</p><h2>{actionCopy}</h2></div>
+            {isHost ? (
+              <button type="button" className="club-button club-button-primary" onClick={onStart} disabled={!canStart || preGameCountdown !== null}>
+                {preGameCountdown !== null ? 'Départ imminent…' : 'Commencer la partie'}
+              </button>
+            ) : (
+              <button type="button" className="club-button club-button-primary" onClick={() => socket?.emit('player_ready', uuid)} disabled={players.length < 2 || Boolean(myReady) || preGameCountdown !== null}>
+                {preGameCountdown !== null ? 'Départ imminent…' : myReady ? 'Prêt(e)' : 'Je suis prêt'}
+              </button>
+            )}
+            <button type="button" className="club-button club-button-quiet" onClick={onLeave}>Quitter la table</button>
+          </section>
         </section>
 
         <section className="club-lobby-seats club-panel" aria-labelledby="lobby-seats-title">
@@ -177,7 +234,7 @@ export default function WaitingRoom({
             <div><p className="club-eyebrow">Autour de la table</p><h2 id="lobby-seats-title">Les places</h2></div>
             <span className="club-seat-count">{players.length} / {maxPlayers}</span>
           </header>
-          <div className={`club-seat-grid ${maxPlayers >= 4 ? 'is-two-columns' : ''}`}>
+          <div className={`club-seat-grid ${maxPlayers >= 4 ? 'is-two-columns' : ''} ${maxPlayers >= 5 ? 'is-large-table' : ''}`}>
             {players.map((player, index) => {
               const isPlayerHost = index === 0
               const isSelf = player.id === socket?.id
@@ -197,20 +254,6 @@ export default function WaitingRoom({
           </div>
         </section>
       </div>
-
-      <section className="club-lobby-action club-panel">
-        <div><p className="club-eyebrow">Prochaine étape</p><h2>{actionCopy}</h2></div>
-        {isHost ? (
-          <button type="button" className="club-button club-button-primary" onClick={onStart} disabled={!canStart || preGameCountdown !== null}>
-            {preGameCountdown !== null ? 'Départ imminent…' : 'Commencer la partie'}
-          </button>
-        ) : (
-          <button type="button" className="club-button club-button-primary" onClick={() => socket?.emit('player_ready', uuid)} disabled={players.length < 2 || Boolean(myReady) || preGameCountdown !== null}>
-            {preGameCountdown !== null ? 'Départ imminent…' : myReady ? 'Prêt(e)' : 'Je suis prêt'}
-          </button>
-        )}
-        <button type="button" className="club-button club-button-quiet" onClick={onLeave}>Quitter la table</button>
-      </section>
 
       {systemMessages.length > 0 && (
         <details className="club-lobby-activity">
