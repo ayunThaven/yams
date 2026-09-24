@@ -53,9 +53,9 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
   return (
     <main className="club-game-over club-finale">
       <header className="club-finale-intro">
-        <p className="club-eyebrow">La dernière ligne est remplie</p>
-        <h1>La table a rendu son verdict.</h1>
-        <p>Partie #{gameState.roomId.slice(0, 8)}</p>
+        <p className="club-eyebrow">Partie terminée</p>
+        <h1>Les dés sont joués.</h1>
+        <p>Table #{gameState.roomId.slice(0, 8)}</p>
       </header>
 
       {/* Classement final */}

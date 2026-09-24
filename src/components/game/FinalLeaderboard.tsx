@@ -22,9 +22,9 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, isWinn
       <div className={`club-finale-winner ${isWinner ? 'is-local-winner' : ''}`}>
         <span className="club-winner-seal" aria-hidden="true">I</span>
         <div>
-          <p className="club-eyebrow">Victoire</p>
-          <h2>{isWinner ? 'Vous tenez la table.' : `${winner.name} tient la table.`}</h2>
-          <p>{winner.totalScore} points au terme de la partie</p>
+          <p className="club-eyebrow">Gagnant</p>
+          <h2>{isWinner ? 'Vous avez gagné !' : `${winner.name} a gagné.`}</h2>
+          <p>{winner.totalScore} points</p>
         </div>
       </div>
 
@@ -42,14 +42,14 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, isWinn
       )}
 
       <div className="club-finale-ledger">
-        <header><p className="club-eyebrow">Résultat complet</p><h2 id="final-results-title">Classement final</h2></header>
+        <header><p className="club-eyebrow">Résultats</p><h2 id="final-results-title">Classement</h2></header>
         <ol>
           {sortedPlayers.map((player, index) => {
             const rank = player.abandoned ? null : index + 1
             return <li className={`${player.id === mySocketId ? 'is-local' : ''} ${player.abandoned ? 'is-abandoned' : ''}`} key={player.id}>
               <span className="club-finale-rank">{rank ?? '—'}</span>
               <span className="club-finale-player-mark">{player.name.charAt(0).toUpperCase()}</span>
-              <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A quitté la table' : rank === 1 ? 'Vainqueur' : `${rank}${rank === 1 ? 'er' : 'e'} place`}</small></p>
+              <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A abandonné' : rank === 1 ? 'Vainqueur' : `${rank}e place`}</small></p>
               <b>{player.totalScore}<small> pts</small></b>
             </li>
           })}
