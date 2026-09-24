@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Socket } from 'socket.io-client'
 import { GameState, ScoreCategory } from '@/types/game'
 import Dice from './Dice'
-import ActiveCategoryCard from './ActiveCategoryCard'
 import MobileGameBoard, { SharedScoreSheet } from './MobileGameBoard'
-import { getNextCategory } from '@/lib/variantLogic'
 import { getCategoryLabel } from '@/lib/categoryLabels'
 import { calculateScore } from '@/lib/yamsLogic'
 import { ClockIcon, DotsIcon } from '@/components/icons/ClubIcons'
@@ -20,7 +18,6 @@ export default function GameBoard(props: GameBoardProps) {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex]
   const myTurn = currentPlayer.id === socket.id
   const myPlayer = gameState.players.find(player => player.id === socket.id)
-  const nextCategory = gameState.variant !== 'classic' && myPlayer ? getNextCategory(gameState.variant, myPlayer.scoreSheet) : null
   const allDiceLocked = gameState.dice.every(die => die.locked)
   const diceWithIndices = gameState.dice.map((die, originalIndex) => ({ ...die, originalIndex }))
   const diceToRoll = diceWithIndices.filter(die => !die.locked)
@@ -81,10 +78,6 @@ export default function GameBoard(props: GameBoardProps) {
             </div>
             <div className="club-roll-zone">{myTurn ? <button onClick={onRollDice} disabled={gameState.rollsLeft === 0 || isRolling || allDiceLocked} className="club-roll-button"><DiceMonogram/>{isRolling ? 'Lancer en cours…' : gameState.rollsLeft === 3 ? 'Lancer les dés' : 'Relancer'}</button> : <p>En attente de {currentPlayer.name}…</p>}<small>{myTurn && hasRolled && gameState.rollsLeft > 0 ? 'Cliquez sur un dé pour le garder ou le remettre en jeu.' : myTurn && gameState.rollsLeft === 0 ? 'Choisissez maintenant une ligne de score.' : ''}</small></div>
           </div>
-
-          {myTurn && gameState.variant !== 'classic' && nextCategory && (
-            <ActiveCategoryCard category={nextCategory} categoryLabel={getCategoryLabel(nextCategory)} categoryDescription="" potentialScore={calculateScore(nextCategory, gameState.dice.map(die => die.value))} onValidate={() => onChooseScore(nextCategory)} canValidate={gameState.rollsLeft < 3}/>
-          )}
 
           <details className="club-activity" open={messages.length > 0}><summary><span><DotsIcon/>Activité de la table</span><small>{messages.length} événement{messages.length > 1 ? 's' : ''}</small></summary><div>{messages.length ? messages.map((message,index) => <p key={`${message}-${index}`}>{message}</p>) : <p>La table est calme pour le moment.</p>}</div></details>
         </section>
