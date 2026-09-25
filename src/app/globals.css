@@ -1011,7 +1011,7 @@ body {
 @media (min-width: 1024px) { .club-felt-table { padding-top: clamp(1.25rem, 1.75vw, 1.75rem); } }
 .club-dice-stage { padding-block: 2rem; }
 .club-dice-stage > div { gap: clamp(.8rem,2vw,1.4rem); }
-.club-dice-stage button { width: clamp(76px,7vw,104px) !important; height: clamp(76px,7vw,104px) !important; border: 1px solid rgba(18,16,15,.22) !important; border-radius: 1rem !important; background: var(--club-ivory) !important; color: var(--club-ink) !important; box-shadow: 0 14px 25px rgba(0,0,0,.3) !important; opacity: 1 !important; }
+.club-dice-stage button { width: clamp(64px,5vw,82px) !important; height: clamp(64px,5vw,82px) !important; border: 1px solid rgba(18,16,15,.22) !important; border-radius: 1rem !important; background: var(--club-ivory) !important; color: var(--club-ink) !important; box-shadow: 0 14px 25px rgba(0,0,0,.3) !important; opacity: 1 !important; }
 .club-dice-stage button:has(> .absolute) { outline: 3px solid var(--club-copper); outline-offset: 4px; transform: translateY(4px); }
 .club-dice-stage button > .absolute { background: var(--club-wine) !important; color: var(--club-ivory); }
 .club-roll-zone { min-height: 105px; display: grid; place-items: center; align-content: center; gap: .65rem; }
@@ -1038,7 +1038,7 @@ body {
 .club-game-root .rounded-2xl, .club-game-root .rounded-xl { border-radius: .85rem !important; }
 .club-game-root .shadow-xl, .club-game-root .shadow-lg { box-shadow: 0 12px 34px rgba(0,0,0,.18) !important; }
 .club-game-root button[aria-label*="dé" i] { transition: border-color .18s ease, transform .18s ease; }
-@media (max-width: 1180px) { .club-game-layout { grid-template-columns: minmax(460px,1fr) 390px; } .club-dice-stage button { width: 78px !important; height: 78px !important; } }
+@media (max-width: 1180px) { .club-game-layout { grid-template-columns: minmax(460px,1fr) 390px; } .club-dice-stage button { width: 70px !important; height: 70px !important; } }
 
 .club-waiting-room { max-width: 1180px !important; padding-top: clamp(2rem,5vw,4.5rem) !important; }
 .club-waiting-room > .text-center { margin-bottom: 2.5rem; }
@@ -1142,7 +1142,7 @@ body {
 .club-dice-active > header small, .club-dice-held > header small { color: #8d8178; font-size: .63rem; font-weight: 650; letter-spacing: normal; text-transform: none; }
 .club-dice-active .club-dice-stage { min-height: 144px; padding: 1.1rem 1rem 1.35rem; display: grid; place-items: center; }
 .club-dice-active .club-dice-stage > p { color: var(--club-muted); font: 600 1.15rem Fraunces, serif; }
-.club-desktop-dice-slots { width: min(100%, 620px); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(.55rem, 1.5vw, 1rem); justify-items: center; }.club-desktop-die-slot { width: 100%; aspect-ratio: 1; display: grid; place-items: center; }.club-desktop-active-die { width: 100%; height: 100%; display: grid !important; place-items: center; }.club-desktop-die-placeholder { width: clamp(76px, 7vw, 104px); height: clamp(76px, 7vw, 104px); border: 2px dashed rgba(244,235,221,.16); border-radius: 1rem; }
+.club-desktop-dice-slots { width: min(100%, 520px); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(.5rem, 1.25vw, .8rem); justify-items: center; }.club-desktop-die-slot { width: 100%; aspect-ratio: 1; display: grid; place-items: center; }.club-desktop-active-die { width: 100%; height: 100%; display: grid !important; place-items: center; }.club-desktop-die-placeholder { width: clamp(64px, 5vw, 82px); height: clamp(64px, 5vw, 82px); border: 2px dashed rgba(244,235,221,.16); border-radius: 1rem; }
 .club-dice-held { min-height: 94px; display: grid; grid-template-columns: 160px minmax(0,1fr); align-items: center; gap: .5rem 1rem; border-top: 1px solid rgba(244,235,221,.12); border-bottom: 1px solid rgba(244,235,221,.08); }
 .club-dice-held > header { padding: 0; display: grid; align-content: center; gap: .25rem; }.club-dice-held > header small { line-height: 1.3; }
 .club-dice-held > div { min-height: 76px; display: flex; align-items: center; justify-content: flex-end; }.club-dice-held > div > span { color: #756a63; font: 600 1.7rem Fraunces, serif; }
