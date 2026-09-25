@@ -187,11 +187,11 @@ export function chooseScore(
   
   if (game.turnNumber > 13 || allActivePlayersFinished) {
     game.gameStatus = 'finished'
-    // Déterminer le gagnant parmi les joueurs actifs (non-abandonnés)
-    const winner = activePlayers.reduce((prev, current) => 
-      current.totalScore > prev.totalScore ? current : prev
-    )
-    game.winner = winner.name
+    // Les ex æquo partagent la victoire : conserver tous les noms pour
+    // les messages et l'historique, l'interface finale se base sur les scores.
+    const topScore = Math.max(...activePlayers.map((player) => player.totalScore))
+    const winners = activePlayers.filter((player) => player.totalScore === topScore)
+    game.winner = winners.map((player) => player.name).join(' et ')
   }
   
   return game

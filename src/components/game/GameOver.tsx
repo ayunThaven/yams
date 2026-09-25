@@ -31,14 +31,16 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
     return b.totalScore - a.totalScore
   })
 
-  const winner = sortedPlayers.find((p) => !p.abandoned) || sortedPlayers[0]
-
-  // Tous les joueurs actifs ayant le meilleur score sont considérés comme vainqueurs
   const activePlayers = gameState.players.filter((p) => !p.abandoned)
   const topScore =
     activePlayers.length > 0
       ? Math.max(...activePlayers.map((p) => p.totalScore))
       : null
+  const winners = topScore === null
+    ? []
+    : activePlayers.filter((player) => player.totalScore === topScore)
+  const winner = winners[0] || sortedPlayers[0]
+  const isTie = winners.length > 1
 
   const myPlayer = mySocketId
     ? gameState.players.find((p) => p.id === mySocketId)
@@ -63,6 +65,8 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
         gameState={gameState}
         mySocketId={mySocketId}
         winner={winner}
+        winners={winners}
+        isTie={isTie}
         isWinner={isWinner}
       />
 
