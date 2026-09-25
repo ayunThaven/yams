@@ -6,7 +6,7 @@ import Dice from './Dice'
 import MobileGameBoard, { SharedScoreSheet } from './MobileGameBoard'
 import { getCategoryLabel } from '@/lib/categoryLabels'
 import { calculateScore } from '@/lib/yamsLogic'
-import { ClockIcon, DotsIcon } from '@/components/icons/ClubIcons'
+import { ClockIcon, CloseIcon, JournalIcon } from '@/components/icons/ClubIcons'
 import { DiceMonogram } from '@/components/BrandMark'
 
 interface GameBoardProps {
@@ -28,15 +28,41 @@ export default function GameBoard(props: GameBoardProps) {
     ? [myPlayer, ...gameState.players.filter(player => player.id !== myPlayer.id)]
     : gameState.players
   const previousMyTurn = useRef<boolean | null>(null)
+  const activityRef = useRef<HTMLElement>(null)
   const [pendingCategory, setPendingCategory] = useState<ScoreCategory | null>(null)
+  const [isActivityOpen, setIsActivityOpen] = useState(false)
+  const [lastSeenActivityCount, setLastSeenActivityCount] = useState(() => systemMessages.length)
 
   useEffect(() => {
     if (previousMyTurn.current === false && myTurn) window.scrollTo({ top: 0, behavior: 'smooth' })
     previousMyTurn.current = myTurn
   }, [myTurn])
 
+  useEffect(() => {
+    if (isActivityOpen) setLastSeenActivityCount(systemMessages.length)
+  }, [isActivityOpen, systemMessages.length])
+
+  useEffect(() => {
+    if (!isActivityOpen) return
+
+    const closeOnOutsideInteraction = (event: PointerEvent) => {
+      if (!activityRef.current?.contains(event.target as Node)) setIsActivityOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsActivityOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideInteraction)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideInteraction)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isActivityOpen])
+
   const time = turnTimeLeft === null ? null : `${Math.floor(turnTimeLeft / 60)}:${String(turnTimeLeft % 60).padStart(2, '0')}`
   const messages = systemMessages.slice(-(gameState.players.length * 3)).reverse()
+  const unreadActivityCount = Math.max(0, systemMessages.length - lastSeenActivityCount)
   const pendingScore = pendingCategory && hasRolled ? calculateScore(pendingCategory, gameState.dice.map(die => die.value)) : null
 
   const confirmScore = () => {
@@ -86,7 +112,12 @@ export default function GameBoard(props: GameBoardProps) {
             <div className="club-roll-zone">{myTurn ? <button onClick={onRollDice} disabled={gameState.rollsLeft === 0 || isRolling || allDiceLocked} className="club-roll-button"><DiceMonogram/>{isRolling ? 'Lancer en cours…' : gameState.rollsLeft === 3 ? 'Lancer les dés' : 'Relancer'}</button> : <p>En attente de {currentPlayer.name}…</p>}<small>{myTurn && hasRolled && gameState.rollsLeft > 0 ? 'Cliquez sur un dé pour le garder ou le remettre en jeu.' : myTurn && gameState.rollsLeft === 0 ? 'Choisissez maintenant une ligne de score.' : ''}</small></div>
           </div>
 
-          <details className="club-activity" open={messages.length > 0}><summary><span><DotsIcon/>Activité de la table</span><small>{messages.length} événement{messages.length > 1 ? 's' : ''}</small></summary><div>{messages.length ? messages.map((message,index) => <p key={`${message}-${index}`}>{message}</p>) : <p>La table est calme pour le moment.</p>}</div></details>
+          <section className="club-table-activity" aria-label="Activité de la table" ref={activityRef}>
+            {isActivityOpen ? <div className="club-table-activity-panel">
+              <header><div><p className="club-eyebrow">Journal</p><h2>Activité récente</h2></div><button type="button" className="club-icon-button" onClick={() => setIsActivityOpen(false)} aria-label="Fermer l’activité"><CloseIcon /></button></header>
+              {messages.length ? <ol>{messages.map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}</ol> : <p>Aucune action récente.</p>}
+            </div> : <button type="button" className="club-table-activity-trigger" onClick={() => setIsActivityOpen(true)} aria-label={`Ouvrir l’activité de la table${unreadActivityCount ? `, ${unreadActivityCount} nouvel${unreadActivityCount > 1 ? 's' : ''} événement${unreadActivityCount > 1 ? 's' : ''}` : ''}`}><JournalIcon />{unreadActivityCount > 0 && <span>{unreadActivityCount}</span>}</button>}
+          </section>
         </section>
 
         <aside className="club-score-rail"><header><p className="club-eyebrow">Feuille partagée</p><h2>Scores de la table</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Toutes les feuilles sont consultables'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={setPendingCategory} showHeader={false} className="club-desktop-score-sheet"/></aside>
