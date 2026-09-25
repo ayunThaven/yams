@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Socket } from 'socket.io-client'
 import { GameState, ScoreCategory } from '@/types/game'
 import Dice from './Dice'
@@ -55,7 +56,7 @@ export default function GameBoard(props: GameBoardProps) {
 
       <section className="club-player-strip" aria-label="Joueurs">{[...gameState.players].sort((a,b) => b.totalScore-a.totalScore).map(player => {
         const active = player.id === currentPlayer.id
-        return <div key={player.id} className={`club-player-chip ${active ? 'is-active' : ''} ${player.abandoned ? 'is-away' : ''}`}><span>{player.name.charAt(0).toUpperCase()}</span><p><strong>{player.id === socket.id ? 'Vous' : player.name}</strong><small>{active ? 'Lance les dés' : player.abandoned ? 'A quitté' : 'À la table'}</small></p><b>{player.totalScore}</b></div>
+        return <div key={player.id} className={`club-player-chip ${active ? 'is-active' : ''} ${player.abandoned ? 'is-away' : ''}`}><span>{player.avatar ? <Image src={player.avatar} alt="" width={34} height={34} unoptimized /> : player.name.charAt(0).toUpperCase()}</span><p><strong>{player.id === socket.id ? 'Vous' : player.name}</strong><small>{active ? 'Lance les dés' : player.abandoned ? 'A quitté' : 'À la table'}</small></p><b>{player.totalScore}</b></div>
       })}</section>
 
       <main className="club-game-layout">

@@ -25,7 +25,7 @@ export { restoreGameState }
  * @param userId - UUID de l'utilisateur
  * @param newSocketId - Nouveau socket.id
  */
-export function updatePlayerSocketId(roomId: string, userId: string, newSocketId: string): boolean {
+export function updatePlayerSocketId(roomId: string, userId: string, newSocketId: string, avatar?: string): boolean {
   const game = getGameState(roomId)
   if (!game) return false
 
@@ -33,6 +33,7 @@ export function updatePlayerSocketId(roomId: string, userId: string, newSocketId
   if (!player) return false
 
   player.id = newSocketId
+  if (avatar) player.avatar = avatar
   return true
 }
 
@@ -41,7 +42,7 @@ export function updatePlayerSocketId(roomId: string, userId: string, newSocketId
  */
 export function initializeGame(
   roomId: string, 
-  players: { id: string; name: string; userId?: string }[],
+  players: { id: string; name: string; userId?: string; avatar?: string }[],
   variant: GameVariant = 'classic'
 ): GameState {
   // Mode développement : pré-remplir les scores pour des tests rapides
@@ -52,6 +53,7 @@ export function initializeGame(
       id: p.id,
       name: p.name,
       userId: p.userId,
+      avatar: p.avatar,
       scoreSheet: createEmptyScoreSheet(),
       totalScore: 0,
       abandoned: false,

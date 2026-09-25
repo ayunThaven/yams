@@ -1,5 +1,6 @@
 /** Classement de clôture d'une partie. */
 
+import Image from 'next/image'
 import { GameState } from '@/types/game'
 
 interface FinalLeaderboardProps {
@@ -20,7 +21,7 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, isWinn
   return (
     <section className="club-finale-results" aria-labelledby="final-results-title">
       <div className={`club-finale-winner ${isWinner ? 'is-local-winner' : ''}`}>
-        <span className="club-winner-seal" aria-hidden="true">I</span>
+        <span className="club-winner-seal" aria-hidden="true">{winner.avatar ? <Image src={winner.avatar} alt="" width={64} height={64} unoptimized /> : 'I'}</span>
         <div>
           <p className="club-eyebrow">Gagnant</p>
           <h2>{isWinner ? 'Vous avez gagné !' : `${winner.name} a gagné.`}</h2>
@@ -48,7 +49,7 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, isWinn
             const rank = player.abandoned ? null : index + 1
             return <li className={`${player.id === mySocketId ? 'is-local' : ''} ${player.abandoned ? 'is-abandoned' : ''}`} key={player.id}>
               <span className="club-finale-rank">{rank ?? '—'}</span>
-              <span className="club-finale-player-mark">{player.name.charAt(0).toUpperCase()}</span>
+              <span className="club-finale-player-mark">{player.avatar ? <Image src={player.avatar} alt="" width={36} height={36} unoptimized /> : player.name.charAt(0).toUpperCase()}</span>
               <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A abandonné' : rank === 1 ? 'Vainqueur' : `${rank}e place`}</small></p>
               <b>{player.totalScore}<small> pts</small></b>
             </li>
