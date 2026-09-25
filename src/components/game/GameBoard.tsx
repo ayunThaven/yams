@@ -67,7 +67,13 @@ export default function GameBoard(props: GameBoardProps) {
               <section className="club-dice-active" aria-label="Dés à relancer">
                 <header><span>Dés à relancer</span><small>{diceToRoll.length} disponible{diceToRoll.length > 1 ? 's' : ''}</small></header>
                 <div className="club-dice-stage">
-                  {diceToRoll.length > 0 ? <Dice dice={diceToRoll} onToggleLock={myTurn ? onToggleDieLock : undefined} canRoll={myTurn && hasRolled && gameState.rollsLeft > 0} isRolling={isRolling} rollCount={rollCount} hideLockIndicator/> : <p>Tous les dés sont gardés.</p>}
+                  <div className="club-desktop-dice-slots">
+                    {diceWithIndices.map((die) => (
+                      <div className="club-desktop-die-slot" key={die.originalIndex}>
+                        {!die.locked ? <Dice dice={[die]} onToggleLock={myTurn ? onToggleDieLock : undefined} canRoll={myTurn && hasRolled && gameState.rollsLeft > 0} isRolling={isRolling} rollCount={rollCount} hideLockIndicator className="club-desktop-active-die" /> : <span className="club-desktop-die-placeholder" aria-hidden="true" />}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
               <section className="club-dice-held" aria-label="Dés gardés">
