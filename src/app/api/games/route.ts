@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyJwtToken } from '@/lib/authServer'
 import { generateGameId } from '@/lib/gameIdGenerator'
 import { unlockActionAchievement } from '@/server/gameFinalization'
+import { trackEvent } from '@/lib/analytics'
+import type { GameVariant } from '@/types/game'
 
 const COOKIE_NAME = 'yams_auth_token'
 const GAME_ID = /^[A-HJ-NP-Z2-9]{8}$/
@@ -74,6 +76,12 @@ export async function POST(request: NextRequest) {
       unlockActionAchievement(supabase, authUser.id, 'create_game'),
       unlockActionAchievement(supabase, authUser.id, 'create_private_game'),
     ])
+    trackEvent('game_created', {
+      gameId: id,
+      variant: variant as GameVariant,
+      visibility: 'PRIVATE',
+      matchType: 'CASUAL',
+    })
 
     return NextResponse.json(
       {
