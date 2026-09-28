@@ -24,21 +24,23 @@ interface GameOverProps {
 export default function GameOver({ gameState, mySocketId, socket, amIHost }: GameOverProps) {
   const { userProfile } = useSupabase()
 
-  // Trier les joueurs pour trouver le gagnant
+  // Trier les joueurs pour afficher le classement.
   const sortedPlayers = [...gameState.players].sort((a, b) => {
     if (a.abandoned && !b.abandoned) return 1
     if (!a.abandoned && b.abandoned) return -1
     return b.totalScore - a.totalScore
   })
 
-  const winner = sortedPlayers.find((p) => !p.abandoned) || sortedPlayers[0]
-
-  // Tous les joueurs actifs ayant le meilleur score sont considérés comme vainqueurs
   const activePlayers = gameState.players.filter((p) => !p.abandoned)
   const topScore =
     activePlayers.length > 0
       ? Math.max(...activePlayers.map((p) => p.totalScore))
       : null
+  const winners = topScore === null
+    ? []
+    : activePlayers.filter((player) => player.totalScore === topScore)
+  const winner = winners[0] || sortedPlayers[0]
+  const isTie = winners.length > 1
 
   const myPlayer = mySocketId
     ? gameState.players.find((p) => p.id === mySocketId)
@@ -51,18 +53,20 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
       myPlayer.totalScore === topScore
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl space-y-6">
-      {/* Titre */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Partie terminée</h1>
-        <p className="text-sm text-base-content/70">Partie #{gameState.roomId.slice(0, 8)}</p>
-      </div>
+    <main className="club-game-over club-finale">
+      <header className="club-finale-intro">
+        <p className="club-eyebrow">Partie terminée</p>
+        <h1>Les dés sont joués.</h1>
+        <p>Table #{gameState.roomId.slice(0, 8)}</p>
+      </header>
 
       {/* Classement final */}
       <FinalLeaderboard
         gameState={gameState}
         mySocketId={mySocketId}
         winner={winner}
+        winners={winners}
+        isTie={isTie}
         isWinner={isWinner}
       />
 
@@ -74,6 +78,6 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
         user={userProfile ? { id: userProfile.id } : null}
         amIHost={amIHost}
       />
-    </div>
+    </main>
   )
 }

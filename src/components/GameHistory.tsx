@@ -1,13 +1,14 @@
 /**
- * Composant affichant l'historique des parties terminées
+ * Historique des dernières parties terminées du joueur.
  */
 
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSupabase } from '@/components/Providers'
-import { GameVariant } from '@/types/game'
+import { ClockIcon, TrophyIcon } from '@/components/icons/ClubIcons'
 import { VARIANT_NAMES } from '@/lib/variantLogic'
+import { GameVariant } from '@/types/game'
 
 interface PlayerScore {
   id: string
@@ -27,18 +28,45 @@ interface Game {
   variant: GameVariant
 }
 
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date))
+}
+
+function matchOutcome(game: Game, userId?: string, email?: string) {
+  const player = game.players_scores?.find((item) => item.user_id === userId)
+  const abandoned = player?.abandoned ?? false
+  const activePlayers = game.players_scores?.filter((item) => !item.abandoned) ?? []
+  const winningScore = activePlayers.length > 0 ? Math.max(...activePlayers.map((item) => item.score)) : null
+  const wonFromFinalScores = !!player && !abandoned && winningScore !== null && player.score === winningScore
+  const wonFromWinnerName = activePlayers.length === 0 && (game.winner === email || game.winner === player?.name)
+  const won = wonFromFinalScores || wonFromWinnerName
+
+  if (abandoned) return { label: 'Abandonnée', tone: 'abandoned', player }
+  if (won) return { label: 'Victoire', tone: 'won', player }
+  return { label: 'Partie jouée', tone: 'played', player }
+}
+
 export default function GameHistory() {
   const { user } = useSupabase()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const lastFetchedUserId = useRef<string | null>(null)
-
   const userId = user?.id
 
-  // Charger les 10 dernières parties terminées de l'utilisateur
   useEffect(() => {
     const fetchGames = async () => {
-      if (!userId) return
+      if (!userId) {
+        setLoading(false)
+        return
+      }
 
       if (lastFetchedUserId.current === userId) {
         setLoading(false)
@@ -46,201 +74,87 @@ export default function GameHistory() {
       }
 
       setLoading(true)
+      setError(false)
       lastFetchedUserId.current = userId
 
       try {
-        const res = await fetch('/api/history', { credentials: 'include' })
-        const json = await res.json()
-        if (!res.ok) {
-          console.error('Erreur lors du chargement de l\'historique:', json.error)
-          setLoading(false)
-          return
-        }
-
+        const response = await fetch('/api/history', { credentials: 'include' })
+        const json = await response.json()
+        if (!response.ok) throw new Error(json.error || 'Impossible de charger l’historique')
         setGames((json.data || []) as Game[])
-        setLoading(false)
-      } catch (error) {
-        console.error('Erreur lors du chargement de l\'historique:', error)
+      } catch (fetchError) {
+        console.error("Erreur lors du chargement de l'historique:", fetchError)
+        setError(true)
+      } finally {
         setLoading(false)
       }
     }
 
     fetchGames()
-  }, [userId])
-
-  if (loading) {
-    return (
-      <div className="card bg-base-100 shadow-xl border border-base-300">
-        <div className="card-body p-6">
-          <div className="text-center">
-            <span className="loading loading-spinner loading-lg"></span>
-            <p className="mt-4">Chargement de l&apos;historique...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  }, [userId, reloadKey])
 
   return (
-    <div className="card bg-base-100 shadow-xl border border-base-300">
-      <div className="card-body p-4 md:p-6 lg:p-4 xl:p-6">
-        <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">📜 Historique des parties</h2>
+    <section className="club-history-panel club-panel" aria-labelledby="history-title">
+      <header className="club-history-heading">
+        <div>
+          <p className="club-eyebrow">Historique</p>
+          <h2 id="history-title" className="club-section-title">Dernières parties</h2>
+        </div>
+        {!loading && games.length > 0 && <span className="club-history-count">{games.length} parties</span>}
+      </header>
 
-      {games.length === 0 ? (
-        <div className="alert alert-info">
-          <span>
-            Aucune partie terminée pour le moment.
-            <br />
-            Jouez votre première partie !
-          </span>
+      {loading ? (
+        <div className="club-history-state" role="status">
+          <span className="club-history-spinner" aria-hidden="true" />
+          <span>Chargement de l’historique…</span>
+        </div>
+      ) : error ? (
+        <div className="club-history-state club-history-error" role="alert">
+          <span>L’historique est indisponible pour le moment.</span>
+          <button className="club-text-button" type="button" onClick={() => { lastFetchedUserId.current = null; setReloadKey((key) => key + 1) }}>
+            Réessayer
+          </button>
+        </div>
+      ) : games.length === 0 ? (
+        <div className="club-history-state club-history-empty">
+          <span className="club-history-empty-mark" aria-hidden="true">—</span>
+          <p>Vous n’avez pas encore terminé de partie.</p>
+          <span>Vos dix dernières parties apparaîtront ici.</span>
         </div>
       ) : (
-        <>
-          {/* Version mobile et tablette : cartes */}
-          <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto">
-            {games.map((g) => {
-              const myPlayerData = g.players_scores && g.players_scores.length > 0
-                ? g.players_scores.find((p: PlayerScore) => p.user_id === user?.id)
-                : null
-              
-              const myScore = myPlayerData?.score ?? 'N/A'
-              const iAbandoned = myPlayerData?.abandoned ?? false
-              
-              const iWon = g.winner === user?.email || 
-                           (myPlayerData && g.winner === myPlayerData.name)
-              
-              const variant = g.variant || 'classic'
-              const variantName = VARIANT_NAMES[variant]
-              
-              return (
-                <div
-                  key={g.id}
-                  className={`card bg-base-100 shadow-xl border border-base-300 ${
-                    iAbandoned ? 'opacity-60' : ''
-                  } ${iWon ? 'ring-2 ring-success' : ''}`}
-                >
-                  <div className="card-body p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="font-bold text-lg mb-1">
-                          {iWon ? '🏆 Vous avez gagné' : iAbandoned ? 'Abandonné' : 'Partie terminée'}
-                        </div>
-                        <div className={`text-sm ${iAbandoned ? 'text-base-content' : 'text-base-content/70'}`}>
-                          {new Date(g.created_at).toLocaleDateString('fr-FR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
-                      </div>
-                      <span className="badge badge-neutral badge-sm">
-                        {variantName}
-                      </span>
-                    </div>
+        <div className="club-history-ledger">
+          <div className="club-history-columns" aria-hidden="true">
+            <span>Table</span><span>Variante</span><span>Votre score</span><span>Issue</span>
+          </div>
+          <ol className="club-history-list">
+            {games.map((game) => {
+              const outcome = matchOutcome(game, userId, user?.email)
+              const score = outcome.player?.score
+              const variant = game.variant || 'classic'
 
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content/70">Votre score</span>
-                        <span className="font-bold text-primary">{myScore}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content/70">Vainqueur</span>
-                        <span className="font-semibold">
-                          {iWon ? 'Vous' : g.winner || 'Inconnu'}
-                        </span>
-                      </div>
-                    </div>
+              return (
+                <li className={`club-history-row is-${outcome.tone}`} key={game.id}>
+                  <div className="club-history-date">
+                    <ClockIcon width={15} height={15} />
+                    <time dateTime={game.created_at}>{formatDate(game.created_at)}</time>
                   </div>
-                </div>
+                  <span className="club-history-variant">{VARIANT_NAMES[variant]}</span>
+                  <strong className="club-history-score">{score ?? '—'}<small>{score !== undefined ? ' pts' : ''}</small></strong>
+                  <div className="club-history-result">
+                    {outcome.tone === 'won' && <TrophyIcon width={15} height={15} aria-label="Victoire" />}
+                    <span>{outcome.label}</span>
+                    {outcome.tone === 'played' && game.winner && <small>· {game.winner}</small>}
+                  </div>
+                </li>
               )
             })}
-          </div>
-
-          {/* Version desktop : tableau */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="table w-full table-compact xl:table-normal">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Variante</th>
-                  <th className="text-center">Votre score</th>
-                  <th>Vainqueur</th>
-                </tr>
-              </thead>
-              <tbody>
-                {games.map((g) => {
-                  const myPlayerData = g.players_scores && g.players_scores.length > 0
-                    ? g.players_scores.find((p: PlayerScore) => p.user_id === user?.id)
-                    : null
-                  
-                  const myScore = myPlayerData?.score ?? 'N/A'
-                  const iAbandoned = myPlayerData?.abandoned ?? false
-                  
-                  const iWon = g.winner === user?.email || 
-                               (myPlayerData && g.winner === myPlayerData.name)
-                  
-                  const variant = g.variant || 'classic'
-                  const variantName = VARIANT_NAMES[variant]
-                  
-                  return (
-                    <tr 
-                      key={g.id} 
-                      className={`transition-colors hover:bg-base-300/50 ${
-                        iAbandoned ? 'opacity-60' : ''
-                      } ${iWon ? 'bg-success/20 font-bold' : ''}`}
-                    >
-                      <td className={`text-sm xl:text-base ${iAbandoned ? '' : 'text-base-content/50'}`}>
-                        {new Date(g.created_at).toLocaleDateString('fr-FR', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                      <td>
-                        <span className="badge badge-neutral badge-sm xl:badge-md w-full justify-center">
-                          {variantName}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <div className="inline-grid grid-rows-[auto_auto] gap-1 justify-items-center">
-                          <span className="font-bold text-primary text-sm xl:text-base">
-                            {myScore}
-                          </span>
-                          {iAbandoned && (
-                            <span className="badge badge-warning badge-sm">Abandonné</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="text-sm xl:text-base">
-                        {iWon ? (
-                          <span className="text-success font-bold">🏆 Vous</span>
-                        ) : (
-                          <span>{g.winner || 'Inconnu'}</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {games.length > 0 && (
-        <div className="mt-4 md:mt-6 text-xs md:text-sm text-base-content/60">
-          <p>
-            💡 Seules vos <strong>10 dernières parties</strong> sont affichées. 
-            Les parties abandonnées sont marquées d&apos;un badge &quot;Abandonné&quot;.
-          </p>
+          </ol>
         </div>
       )}
-      </div>
-    </div>
+
+      {!loading && !error && games.length > 0 && (
+        <p className="club-history-note">Les dix dernières parties sont affichées ici.</p>
+      )}
+    </section>
   )
 }
-

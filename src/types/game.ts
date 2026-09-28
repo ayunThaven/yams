@@ -37,6 +37,7 @@ export interface PlayerGameState {
   id: string
   name: string
   userId?: string  // UUID de l'utilisateur (optionnel pour compatibilité)
+  avatar?: string
   scoreSheet: ScoreSheet
   totalScore: number
   abandoned: boolean

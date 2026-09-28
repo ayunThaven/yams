@@ -46,7 +46,7 @@ export async function GET(
         )
         .eq('user_id', id)
         .order('unlocked_at', { ascending: false })
-        .limit(10)
+        .limit(5)
 
       if (error) {
         console.error('[API/USER ACHIEVEMENTS] Erreur chargement achievements:', error)
