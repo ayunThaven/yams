@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/*.test.ts",
+    "test": "tsx --test src/lib/*.test.ts src/server/*.test.ts tests/*.test.ts tests/integration/*.test.ts",
+    "test:db": "node scripts/test-v2-migration.mjs",
     "check": "npm run typecheck && npm run lint && npm run test",
     "backoffice:bootstrap": "tsx scripts/bootstrap-backoffice.ts"
   },

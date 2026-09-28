@@ -283,6 +283,18 @@ Elles permettent notamment de créer et maintenir :
 
 Appliquez les migrations dans leur ordre avant de lancer l'application sur une nouvelle base.
 
+La migration `028_v2_foundations.sql` prépare les sessions invitées, les parties
+`PRIVATE`/`PUBLIC` et `CASUAL`/`RANKED`, et fait de `game_players` l'identité
+canonique des participants. Elle conserve `PRIVATE` et `CASUAL` pour les parties
+actuelles. Les résultats et actions sont liés au participant par une clé
+composite incluant la partie ; leur ancien `user_id` est synchronisé par la base
+pour compatibilité. Les comptes possédant un historique de jeu ne peuvent plus
+être supprimés physiquement, afin de préserver cet historique. Une partie
+ancienne et déjà terminée sans hôte fiable porte `legacy_hostless` ; une partie
+active sans hôte bloque la migration avec ses identifiants dans l'erreur.
+`npm run test:db` vérifie cette migration sur une base PostgreSQL locale jetable
+nommée `yams_v2_test` via `TEST_DATABASE_URL`.
+
 ---
 
 ## 💻 Lancer l'application
