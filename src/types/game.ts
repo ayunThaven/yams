@@ -2,6 +2,20 @@
 
 export type GameVariant = 'classic' | 'descending' | 'ascending'
 
+export type GameVisibility = 'PRIVATE' | 'PUBLIC'
+export type MatchType = 'CASUAL' | 'RANKED'
+
+/** A persisted participant always has exactly one server-owned identity. */
+export type PlayerIdentity =
+  | { kind: 'USER'; userId: string; guestSessionId?: never }
+  | { kind: 'GUEST'; guestSessionId: string; userId?: never }
+
+export type GameParticipant = PlayerIdentity & {
+  id: string
+  gameId: string
+  playerName: string
+}
+
 export type GameEndReason = 'completed' | 'abandon' | 'timeout' | 'server_interrupted'
 
 export type ScoreCategory = 
