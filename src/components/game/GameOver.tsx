@@ -24,7 +24,7 @@ interface GameOverProps {
 export default function GameOver({ gameState, mySocketId, socket, amIHost }: GameOverProps) {
   const { userProfile } = useSupabase()
 
-  // Trier les joueurs pour trouver le gagnant
+  // Trier les joueurs pour afficher le classement.
   const sortedPlayers = [...gameState.players].sort((a, b) => {
     if (a.abandoned && !b.abandoned) return 1
     if (!a.abandoned && b.abandoned) return -1

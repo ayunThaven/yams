@@ -36,7 +36,7 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, winner
           </span>
         ) : <span className="club-winner-seal" aria-hidden="true">{winner.avatar ? <Image src={winner.avatar} alt="" width={64} height={64} unoptimized /> : 'I'}</span>}
         <div>
-          <p className="club-eyebrow">{isTie ? 'Égalité' : 'Gagnant'}</p>
+          <p className="club-eyebrow">{isTie ? 'Égalité' : 'En tête'}</p>
           <h2>{isTie ? (isWinner ? 'Vous partagez la victoire.' : `${winnerNames} partagent la victoire.`) : (isWinner ? 'Vous avez gagné !' : `${winner.name} a gagné.`)}</h2>
           <p>{winner.totalScore} points{isTie ? ' chacun' : ''}</p>
         </div>
@@ -64,7 +64,7 @@ export default function FinalLeaderboard({ gameState, mySocketId, winner, winner
             return <li className={`${player.id === mySocketId ? 'is-local' : ''} ${player.abandoned ? 'is-abandoned' : ''}`} key={player.id}>
               <span className="club-finale-rank">{rank ?? '—'}</span>
               <span className="club-finale-player-mark">{player.avatar ? <Image src={player.avatar} alt="" width={36} height={36} unoptimized /> : player.name.charAt(0).toUpperCase()}</span>
-              <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A abandonné' : sharesRank ? `Égalité · ${rank}re place` : rank === 1 ? 'Vainqueur' : `${rank}e place`}</small></p>
+              <p><strong>{player.id === mySocketId ? 'Vous' : player.name}</strong><small>{player.abandoned ? 'A abandonné' : sharesRank ? `Égalité · ${rank}re place` : `${rank}e place`}</small></p>
               <b>{player.totalScore}<small> pts</small></b>
             </li>
           })}

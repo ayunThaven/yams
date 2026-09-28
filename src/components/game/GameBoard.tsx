@@ -61,7 +61,7 @@ export default function GameBoard(props: GameBoardProps) {
   }, [isActivityOpen])
 
   const time = turnTimeLeft === null ? null : `${Math.floor(turnTimeLeft / 60)}:${String(turnTimeLeft % 60).padStart(2, '0')}`
-  const messages = systemMessages.slice(-(gameState.players.length * 3)).reverse()
+  const messages = [...systemMessages].reverse()
   const unreadActivityCount = Math.max(0, systemMessages.length - lastSeenActivityCount)
   const pendingScore = pendingCategory && hasRolled ? calculateScore(pendingCategory, gameState.dice.map(die => die.value)) : null
 
@@ -88,7 +88,7 @@ export default function GameBoard(props: GameBoardProps) {
       <main className="club-game-layout">
         <section className="club-game-center">
           <div className="club-felt-table">
-            <header><div><p className="club-eyebrow">{myTurn ? 'Votre lancer' : `Lancer de ${currentPlayer.name}`}</p><h1>{myTurn ? 'Faites parler les dés.' : 'La table attend.'}</h1></div><span><b>{gameState.rollsLeft}</b> lancer{gameState.rollsLeft > 1 ? 's' : ''}</span></header>
+            <header><div><p className="club-eyebrow">La table</p><h1>{myTurn ? 'Votre lancer' : `Au tour de ${currentPlayer.name}`}</h1></div><span><b>{gameState.rollsLeft}</b> lancer{gameState.rollsLeft > 1 ? 's' : ''}</span></header>
             <div className="club-desktop-dice-groups">
               <section className="club-dice-active" aria-label="Dés à relancer">
                 <header><span>Dés à relancer</span><small>{diceToRoll.length} disponible{diceToRoll.length > 1 ? 's' : ''}</small></header>
@@ -120,7 +120,7 @@ export default function GameBoard(props: GameBoardProps) {
           </section>
         </section>
 
-        <aside className="club-score-rail"><header><p className="club-eyebrow">Feuille partagée</p><h2>Scores de la table</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Toutes les feuilles sont consultables'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={setPendingCategory} showHeader={false} className="club-desktop-score-sheet"/></aside>
+        <aside className="club-score-rail"><header><p className="club-eyebrow">Scores</p><h2>Feuille partagée</h2><small>{gameState.variant !== 'classic' ? 'Ordre imposé' : 'Consultez les scores de chaque joueur'}</small></header><SharedScoreSheet players={scorePlayers} currentPlayerId={currentPlayer.id} localPlayerId={socket.id ?? ''} currentDice={gameState.dice.map(die => die.value)} variant={gameState.variant} hasRolled={hasRolled} myTurn={myTurn} onRequestScore={setPendingCategory} showHeader={false} className="club-desktop-score-sheet"/></aside>
       </main>
       {pendingCategory && pendingScore !== null && <section className="club-score-confirmation club-score-confirmation-bottom" aria-live="polite"><div><p className="club-eyebrow">Score à inscrire</p><h3><strong>{pendingScore}</strong> en {getCategoryLabel(pendingCategory)}</h3></div><footer><button type="button" className="club-button club-button-quiet" onClick={() => setPendingCategory(null)}>Annuler</button><button type="button" className="club-button club-button-primary" onClick={confirmScore}>Valider</button></footer></section>}
     </div>

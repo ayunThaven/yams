@@ -145,7 +145,7 @@ export default function WaitingRoom({
   const handleMaxPlayersChange = (nextMax: number) => {
     if (!isHost || !socket || updatingMaxPlayers || preGameCountdown !== null) return
     if (nextMax < players.length) {
-      setCapacityError(`Il y a déjà ${players.length} joueurs à la table.`)
+      setCapacityError(`Il y a déjà ${players.length} joueurs dans la partie.`)
       return
     }
     setCapacityError('')
@@ -157,17 +157,27 @@ export default function WaitingRoom({
   }
 
   const actionCopy = isHost
-    ? canStart ? 'Tout le monde est prêt.' : players.length < 2 ? 'Invitez au moins un partenaire.' : 'En attente des confirmations.'
-    : players.length < 2 ? 'En attente d’un autre joueur.' : myReady ? 'Votre place est confirmée.' : 'Confirmez votre présence à la table.'
+    ? canStart ? 'Tout le monde est prêt.' : players.length < 2 ? 'Partagez le code de la partie.' : 'En attente des confirmations.'
+    : players.length < 2 ? 'En attente d’un autre joueur.' : myReady ? 'Vous êtes prêt(e).' : 'Indiquez que vous êtes prêt(e).'
+  const lobbyTitle = canStart
+    ? 'La partie peut commencer.'
+    : players.length < 2
+      ? 'Invitez un autre joueur.'
+      : 'En attente des confirmations.'
+  const lobbyDescription = canStart
+    ? 'Tout le monde est prêt. Vous pouvez commencer la partie.'
+    : players.length < 2
+      ? 'Partagez le code pour permettre à un autre joueur de rejoindre la partie.'
+      : 'Chaque joueur doit indiquer qu’il est prêt avant le départ.'
 
   return (
     <main className="club-lobby">
       <header className="club-lobby-hero">
         <DiceMonogram />
         <div>
-          <p className="club-eyebrow">Table ouverte</p>
-          <h1>La table est dressée.</h1>
-          <p>Partagez le code, réunissez les joueurs, puis lancez la première manche.</p>
+          <p className="club-eyebrow">{canStart ? 'Prêts à jouer' : 'Partie en attente'}</p>
+          <h1>{lobbyTitle}</h1>
+          <p>{lobbyDescription}</p>
         </div>
       </header>
 
@@ -184,7 +194,7 @@ export default function WaitingRoom({
           <div className="club-lobby-panel-heading">
             <div>
               <p className="club-eyebrow">Invitation</p>
-              <h2 id="lobby-invitation-title">Votre code de table</h2>
+              <h2 id="lobby-invitation-title">Code de la partie</h2>
             </div>
             <span className={`club-lobby-status ${canStart ? 'is-ready' : ''}`}>{canStart ? 'Prête' : 'En préparation'}</span>
           </div>
@@ -193,7 +203,7 @@ export default function WaitingRoom({
             <code>{uuid}</code>
             <span><CopyIcon width={18} height={18} />{copied ? 'Copié' : 'Copier'}</span>
           </button>
-          <p className="club-lobby-hint">Envoyez ce code à vos partenaires pour les faire entrer à la table.</p>
+          <p className="club-lobby-hint">Partagez ce code pour inviter les autres joueurs.</p>
 
           <dl className="club-lobby-details">
             <div><dt>Variante</dt><dd>{variantLoading ? 'Chargement…' : VARIANT_NAMES[variant]}</dd></div>
@@ -202,10 +212,10 @@ export default function WaitingRoom({
           {isHost && (
             <div className={`club-capacity-picker ${capacityPickerOpen ? 'is-open' : ''}`} ref={capacityPickerRef}>
               <button type="button" aria-expanded={capacityPickerOpen} aria-haspopup="listbox" aria-controls="capacity-options" onClick={() => setCapacityPickerOpen((open) => !open)} disabled={updatingMaxPlayers || preGameCountdown !== null}>
-                <span>Capacité de la table</span>
+                <span>Nombre de joueurs</span>
                 <span><strong>{maxPlayers} joueurs</strong><ChevronDownIcon width={16} height={16} /></span>
               </button>
-              {capacityPickerOpen && <div id="capacity-options" className="club-capacity-options" role="listbox" aria-label="Capacité de la table">
+              {capacityPickerOpen && <div id="capacity-options" className="club-capacity-options" role="listbox" aria-label="Nombre de joueurs">
                 {[2, 3, 4, 5, 6, 7, 8].map((count) => <button key={count} type="button" role="option" aria-selected={count === maxPlayers} className={count === maxPlayers ? 'is-selected' : ''} onClick={() => { handleMaxPlayersChange(count); setCapacityPickerOpen(false) }} disabled={count < players.length || updatingMaxPlayers || preGameCountdown !== null}>
                   <span>{count} joueurs</span><i aria-hidden="true" />
                 </button>)}
@@ -214,7 +224,7 @@ export default function WaitingRoom({
           )}
           {capacityError && <p className="club-capacity-error" role="alert">{capacityError}</p>}
 
-          <section className="club-lobby-action" aria-label="Actions de la table">
+          <section className="club-lobby-action" aria-label="Actions de la partie">
             <div><p className="club-eyebrow">Prochaine étape</p><h2>{actionCopy}</h2></div>
             {isHost ? (
               <button type="button" className="club-button club-button-primary" onClick={onStart} disabled={!canStart || preGameCountdown !== null}>
@@ -225,13 +235,13 @@ export default function WaitingRoom({
                 {preGameCountdown !== null ? 'Départ imminent…' : myReady ? 'Prêt(e)' : 'Je suis prêt'}
               </button>
             )}
-            <button type="button" className="club-button club-button-quiet" onClick={onLeave}>Quitter la table</button>
+            <button type="button" className="club-button club-button-quiet" onClick={onLeave}>Quitter la partie</button>
           </section>
         </section>
 
         <section className="club-lobby-seats club-panel" aria-labelledby="lobby-seats-title">
           <header className="club-lobby-panel-heading">
-            <div><p className="club-eyebrow">Autour de la table</p><h2 id="lobby-seats-title">Les places</h2></div>
+            <div><p className="club-eyebrow">Joueurs</p><h2 id="lobby-seats-title">Participants</h2></div>
             <span className="club-seat-count">{players.length} / {maxPlayers}</span>
           </header>
           <div className={`club-seat-grid ${maxPlayers >= 4 ? 'is-two-columns' : ''} ${maxPlayers >= 5 ? 'is-large-table' : ''}`}>
@@ -257,7 +267,7 @@ export default function WaitingRoom({
 
       {systemMessages.length > 0 && (
         <details className="club-lobby-activity">
-          <summary>Activité de la table <span>{systemMessages.length}</span></summary>
+          <summary>Activité de la partie <span>{systemMessages.length}</span></summary>
           <div ref={messagesRef}>{systemMessages.slice(-5).reverse().map((message, index) => <p key={`${message}-${index}`}>{message}</p>)}</div>
         </details>
       )}

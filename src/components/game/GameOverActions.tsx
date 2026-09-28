@@ -146,7 +146,7 @@ export default function GameOverActions({
             {creatingRematch ? 'Création…' : 'Créer une revanche'}
           </button>
         ) : null}
-        <button onClick={goToDashboard} className="club-button club-button-secondary">Retour au Hall</button>
+        <button onClick={goToDashboard} className="club-button club-button-secondary">Retour à l’accueil</button>
       </div>
     </section>
   )
