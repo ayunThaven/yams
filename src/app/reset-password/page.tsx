@@ -110,10 +110,10 @@ export default function ResetPasswordPage() {
   // Si pas de token dans l’URL : étape 1 = saisie de l’email
   if (!token) {
     return (
-      <div className="flex justify-center items-center min-h-[70vh]">
+      <div className="club-auth-page club-auth-page-single">
         <form
           onSubmit={handleRequestReset}
-          className="bg-base-200 p-8 rounded-lg shadow-md w-full max-w-md space-y-4"
+          className="club-auth-form"
         >
           <h1 className="text-2xl font-bold text-center">Mot de passe oublié</h1>
           <p className="text-sm text-base-content/70 text-center">
@@ -146,10 +146,10 @@ export default function ResetPasswordPage() {
 
   // Si token présent : étape 2 = choix du nouveau mot de passe
   return (
-    <div className="flex justify-center items-center min-h-[70vh]">
+    <div className="club-auth-page club-auth-page-single">
       <form
         onSubmit={handleChangePassword}
-        className="bg-base-200 p-8 rounded-lg shadow-md w-full max-w-md space-y-4"
+        className="club-auth-form"
       >
         <h1 className="text-2xl font-bold text-center">Réinitialiser le mot de passe</h1>
 
