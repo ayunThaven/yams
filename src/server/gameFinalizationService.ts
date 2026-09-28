@@ -10,7 +10,7 @@ import type {
 import type { UserProfile } from '@/types/user'
 import { checkAndUnlockAchievements } from '@/lib/achievements'
 import { countYamsInScoreSheet, getUserProfile } from '@/lib/userStats'
-import { updateFinishedGame } from './gameDbUtils'
+import { emitUnlockedAchievements, updateFinishedGame } from './gameDbUtils'
 import { recordGamePlayerResult } from './playerResultsService'
 import { unlockAchievementsForUser } from './achievementService'
 
@@ -276,19 +276,27 @@ async function finalizeGameInternal({
 }: FinalizeGameParams): Promise<PersistedGameResult> {
   gameState.gameStatus = 'finished'
 
-  await updateFinishedGame(supabase, roomId, gameState, reason)
+  const persisted = await updateFinishedGame(supabase, roomId, gameState, reason)
+  if (!persisted.success) throw new Error(persisted.error ?? 'Game finalization failed')
+  emitUnlockedAchievements(io, gameState, persisted.achievements)
 
-  const playerResults: PlayerResult[] = []
-
-  for (const player of gameState.players) {
-    const built = await buildPlayerResult(supabase, roomId, gameState, player, reason)
-    if (!built) continue
-
-    const result = await recordAndNotifyPlayerResult(io, supabase, gameState, player, built)
-    if (result) {
-      playerResults.push(result)
-    }
-  }
+  const { data: rows, error: resultsError } = await supabase.from('game_results')
+    .select('game_id, user_id, player_name, score, won, abandoned, yams_count, xp_gained, reason, score_sheet, yams_faces')
+    .eq('game_id', roomId)
+  if (resultsError) throw new Error(resultsError.message)
+  const playerResults: PlayerResult[] = (rows ?? []).flatMap((row) => row.user_id ? [{
+    gameId: row.game_id,
+    userId: row.user_id,
+    playerName: row.player_name,
+    score: row.score,
+    won: row.won,
+    abandoned: row.abandoned,
+    yamsCount: row.yams_count,
+    xpGained: row.xp_gained,
+    reason: row.reason as GameEndReason,
+    scoreSheet: row.score_sheet,
+    yamsFaces: row.yams_faces,
+  }] : [])
 
   io.to(roomId).emit('game_update', gameState)
   io.to(roomId).emit('game_ended', {

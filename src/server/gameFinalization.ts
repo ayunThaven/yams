@@ -4,10 +4,11 @@ import { Achievement } from '@/types/achievement'
 import { GameEndReason, GameState, PlayerGameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
 import { countYamsInScoreSheet } from '@/lib/userStats'
+import { trackEvent } from '@/lib/analytics'
 import { getFinalizationAchievementIds } from './achievementRules'
 
 type PersistedResult = {
-  user_id: string
+  user_id: string | null
   player_name: string
   score: number
   won: boolean
@@ -15,13 +16,15 @@ type PersistedResult = {
   yams_count: number
   yams_faces: number[]
   score_sheet: PlayerGameState['scoreSheet']
+  reason?: GameEndReason
 }
 
 type FinalizationResponse = {
   processed_user_ids?: string[]
+  first_completion?: boolean
 }
 
-function toPersistedResults(gameState: GameState): PersistedResult[] {
+function toPersistedResults(gameState: GameState, reason: GameEndReason): PersistedResult[] {
   const activePlayers = gameState.players.filter((player) => !player.abandoned)
   const topScore = activePlayers.length > 0
     ? Math.max(...activePlayers.map((player) => player.totalScore))
@@ -39,6 +42,7 @@ function toPersistedResults(gameState: GameState): PersistedResult[] {
       yams_count: countYamsInScoreSheet(player.scoreSheet),
       yams_faces: player.yamsFaces ?? [],
       score_sheet: player.scoreSheet,
+      reason,
     }]
   })
 }
@@ -53,7 +57,8 @@ async function unlockAchievement(
     p_achievement_id: achievementId,
   })
 
-  if (error || data !== true) return null
+  if (error) throw new Error(`Achievement ${achievementId}: ${error.message}`)
+  if (data !== true) return null
 
   const { data: achievement } = await supabase
     .from('achievements')
@@ -67,25 +72,26 @@ async function unlockAchievement(
 async function unlockFinalizationAchievements(
   supabase: SupabaseClient,
   gameState: GameState,
-  results: PersistedResult[],
-  processedUserIds: string[]
+  results: PersistedResult[]
 ): Promise<Record<string, Achievement[]>> {
   const unlockedByUser: Record<string, Achievement[]> = {}
 
   for (const result of results) {
-    if (!processedUserIds.includes(result.user_id)) continue
+    const userId = result.user_id
+    if (!userId) continue
 
     const { data: profile, error } = await supabase
       .from('users')
       .select('*')
-      .eq('id', result.user_id)
+      .eq('id', userId)
       .maybeSingle()
 
-    if (error || !profile) continue
+    if (error) throw new Error(`Profile ${userId}: ${error.message}`)
+    if (!profile) throw new Error(`Profile ${userId} is missing`)
 
     const userProfile = profile as UserProfile
     const leaderboardRank = userProfile.parties_jouees >= 5
-      ? await getLeaderboardRank(supabase, result.user_id)
+      ? await getLeaderboardRank(supabase, userId)
       : null
     const candidateIds = getFinalizationAchievementIds({
       result,
@@ -95,9 +101,9 @@ async function unlockFinalizationAchievements(
     })
 
     const unlocked = await Promise.all(
-      candidateIds.map((achievementId) => unlockAchievement(supabase, result.user_id, achievementId))
+      candidateIds.map((achievementId) => unlockAchievement(supabase, userId, achievementId))
     )
-    unlockedByUser[result.user_id] = unlocked.filter((achievement): achievement is Achievement => achievement !== null)
+    unlockedByUser[userId] = unlocked.filter((achievement): achievement is Achievement => achievement !== null)
   }
 
   return unlockedByUser
@@ -114,7 +120,8 @@ async function getLeaderboardRank(supabase: SupabaseClient, userId: string): Pro
     .order('nombre_yams_realises', { ascending: false })
     .limit(5)
 
-  if (error || !data) return null
+  if (error) throw new Error(`Leaderboard rank: ${error.message}`)
+  if (!data) return null
   const index = data.findIndex((row) => row.id === userId)
   return index === -1 ? null : index + 1
 }
@@ -124,7 +131,7 @@ export async function finalizeGame(
   gameState: GameState,
   reason: GameEndReason = 'completed'
 ): Promise<{ success: boolean; achievements: Record<string, Achievement[]>; error?: string }> {
-  const results = toPersistedResults(gameState)
+  const results = toPersistedResults(gameState, reason)
   const { data, error } = await supabase.rpc('finalize_game', {
     p_game_id: gameState.roomId,
     p_results: results,
@@ -134,14 +141,24 @@ export async function finalizeGame(
     return { success: false, achievements: {}, error: error.message }
   }
 
-  const processedUserIds = ((data as FinalizationResponse | null)?.processed_user_ids ?? [])
-  await Promise.all(results.map((result) => supabase.from('game_results').update({
-    yams_faces: result.yams_faces,
-    reason,
-  }).eq('game_id', gameState.roomId).eq('user_id', result.user_id)))
-  const achievements = await unlockFinalizationAchievements(supabase, gameState, results, processedUserIds)
-
-  return { success: true, achievements }
+  try {
+    // Replay achievements from canonical rows even when this RPC inserted no
+    // new result. An earlier attempt may have failed after the SQL commit.
+    const { data: storedResults, error: readError } = await supabase
+      .from('game_results')
+      .select('user_id, player_name, score, won, abandoned, yams_count, yams_faces, score_sheet')
+      .eq('game_id', gameState.roomId)
+    if (readError) throw new Error(readError.message)
+    const achievements = await unlockFinalizationAchievements(
+      supabase, gameState, (storedResults ?? []) as PersistedResult[]
+    )
+    if ((data as FinalizationResponse | null)?.first_completion) {
+      trackEvent('game_completed', { gameId: gameState.roomId, reason })
+    }
+    return { success: true, achievements }
+  } catch (failure) {
+    return { success: false, achievements: {}, error: String(failure) }
+  }
 }
 
 export async function unlockActionAchievement(

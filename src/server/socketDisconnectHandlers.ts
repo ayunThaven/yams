@@ -118,14 +118,24 @@ export function setupDisconnectHandlers(
                 roomStates.delete(roomId)
               } else if (updatedGame.gameStatus === 'finished') {
                 // Un seul joueur reste, il gagne
-                await finalizeGame({
-                  io,
-                  supabase,
-                  roomId,
-                  gameState: updatedGame,
-                  reason: 'abandon',
-                })
-                roomStates.delete(roomId)
+                const persistFinalization = async (attempt: number): Promise<void> => {
+                  try {
+                    await finalizeGame({
+                      io,
+                      supabase,
+                      roomId,
+                      gameState: updatedGame,
+                      reason: 'abandon',
+                    })
+                    roomStates.delete(roomId)
+                  } catch (error) {
+                    console.error('[DISCONNECT] Finalisation impossible:', error)
+                    if (attempt < 3) {
+                      setTimeout(() => void persistFinalization(attempt + 1), 5000)
+                    }
+                  }
+                }
+                await persistFinalization(0)
               } else {
                 // 2+ joueurs restent, continuer
                 // Compter les joueurs actifs (non-abandonnés)
