@@ -69,16 +69,16 @@ export default function RecentAchievements() {
   const unlockedCount = allItems.filter(item => item.unlocked_at).length
 
   return <section className="club-achievements-panel">
-    <header className="club-achievements-header"><div><p className="club-eyebrow">Cabinet des trophées</p><h2>Vos derniers succès</h2></div><button onClick={openCollection} className="club-text-action">Voir la collection <ChevronRightIcon/></button></header>
+    <header className="club-achievements-header"><div><p className="club-eyebrow">Succès</p><h2>Vos derniers succès</h2></div><button onClick={openCollection} className="club-text-action">Voir tous les succès <ChevronRightIcon/></button></header>
     {loading && <div className="club-achievements-state"><span className="loading loading-spinner"/>Chargement de vos succès…</div>}
     {!loading && error && <p className="club-form-error">{error}</p>}
-    {!loading && !error && items.length === 0 && <div className="club-achievements-empty"><span>Votre vitrine est encore vide.</span><small>Les premières médailles viendront avec vos parties.</small></div>}
+    {!loading && !error && items.length === 0 && <div className="club-achievements-empty"><span>Aucun succès pour le moment.</span><small>Jouez pour en débloquer.</small></div>}
     {!loading && !error && items.length > 0 && <div className="club-achievement-strip">{items.slice(0, 5).map(item => <AchievementMedal key={item.id} item={item} onOpen={setPreview} compact/>)}</div>}
 
     {collectionOpen && <div className="club-dialog-layer" role="presentation" onMouseDown={() => setCollectionOpen(false)}>
       <section className="club-collection-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-title" onMouseDown={event => event.stopPropagation()}>
-        <header><div><p className="club-eyebrow">Cabinet des trophées</p><h2 id="collection-title">Votre collection</h2><p>{loadingCollection ? 'Inventaire en cours…' : `${unlockedCount} succès obtenus sur ${allItems.length || '—'}`}</p></div><button className="club-icon-button" onClick={() => setCollectionOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
-        {loadingCollection && <div className="club-achievements-state"><span className="loading loading-spinner"/>Ouverture de la collection…</div>}
+        <header><div><p className="club-eyebrow">Succès</p><h2 id="collection-title">Tous vos succès</h2><p>{loadingCollection ? 'Chargement…' : `${unlockedCount} succès obtenus sur ${allItems.length || '—'}`}</p></div><button className="club-icon-button" onClick={() => setCollectionOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
+        {loadingCollection && <div className="club-achievements-state"><span className="loading loading-spinner"/>Chargement des succès…</div>}
         {!loadingCollection && error && <p className="club-form-error">{error}</p>}
         {!loadingCollection && !error && <div className="club-collection-grid">{allItems.map(item => <AchievementMedal key={item.id} item={item} onOpen={setPreview}/>)}</div>}
       </section>

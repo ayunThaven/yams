@@ -50,7 +50,7 @@ export default function RegisterForm() {
 
   return (
     <div className="club-auth-page">
-      <div className="club-auth-intro"><p className="club-eyebrow">Nouvelle adhésion</p><h2>Votre carnet commence ici.</h2><p>Créez votre identité de joueur et ouvrez votre première table.</p></div>
+      <div className="club-auth-intro"><p className="club-eyebrow">Créer un compte</p><h2>Commencez à jouer.</h2><p>Choisissez un pseudo, puis créez ou rejoignez une partie.</p></div>
       <form
         onSubmit={handleSubmit}
         className="club-auth-form"
@@ -59,7 +59,7 @@ export default function RegisterForm() {
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Inscription
           </h1>
-          <p className="text-base-content/70">Quelques détails avant de prendre place.</p>
+          <p className="text-base-content/70">Renseignez vos informations pour continuer.</p>
         </div>
 
         <div className="space-y-4">

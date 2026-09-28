@@ -9,7 +9,7 @@ import BrandMark from './BrandMark'
 import { BugIcon, HomeIcon, LogoutIcon, MenuIcon, TrophyIcon, UserIcon } from './icons/ClubIcons'
 
 const navigation = [
-  { href: '/dashboard', label: 'Hall', icon: HomeIcon },
+  { href: '/dashboard', label: 'Accueil', icon: HomeIcon },
   { href: '/leaderboard', label: 'Classement', icon: TrophyIcon },
   { href: '/profile', label: 'Profil', icon: UserIcon },
 ]
@@ -26,7 +26,7 @@ function NavLinks({ mobile = false }: { mobile?: boolean }) {
 
 export function PublicHeader() {
   const { user } = useSupabase()
-  return <header className="club-public-header"><BrandMark/><nav aria-label="Navigation publique">{user ? <Link href="/dashboard" className="club-button club-button-primary">Entrer dans le Hall</Link> : <><Link href="/login" className="club-link-button">Connexion</Link><Link href="/register" className="club-button club-button-primary">S&apos;inscrire</Link></>}</nav></header>
+  return <header className="club-public-header"><BrandMark/><nav aria-label="Navigation publique">{user ? <Link href="/dashboard" className="club-button club-button-primary">Accéder à l’accueil</Link> : <><Link href="/login" className="club-link-button">Connexion</Link><Link href="/register" className="club-button club-button-primary">S&apos;inscrire</Link></>}</nav></header>
 }
 
 export default function PlayerChrome({ children }: { children: React.ReactNode }) {

@@ -52,7 +52,7 @@ export default function TicketsPage() {
   }
 
   return <div className="club-page space-y-8">
-    <header className="club-page-header"><p className="club-eyebrow">Conciergerie</p><h1 className="club-page-title">Signaler un problème.</h1><p className="club-page-subtitle">Décrivez précisément ce qui s’est passé et suivez son traitement.</p></header>
+    <header className="club-page-header"><p className="club-eyebrow">Assistance</p><h1 className="club-page-title">Signaler un problème.</h1><p className="club-page-subtitle">Décrivez ce qui s’est passé et suivez son traitement.</p></header>
     <form onSubmit={submit} className="card bg-base-100 border border-base-300 shadow-xl"><div className="card-body grid gap-4 md:grid-cols-2">
       <label className="form-control md:col-span-2"><span className="label-text">Titre</span><input className="input input-bordered" name="title" minLength={5} maxLength={160} required /></label>
       <label className="form-control md:col-span-2"><span className="label-text">Description</span><textarea className="textarea textarea-bordered min-h-28" name="description" minLength={10} required /></label>

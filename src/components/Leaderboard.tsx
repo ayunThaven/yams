@@ -33,16 +33,16 @@ export default function Leaderboard() {
     fetch('/api/leaderboard')
       .then(async response => {
         const json = await response.json()
-        if (!response.ok) throw new Error(json.error || 'Le tableau est indisponible.')
+        if (!response.ok) throw new Error(json.error || 'Le classement est indisponible.')
         setPlayers((json.data || []) as UserStats[])
         setMyRank(json.userRank || null)
         setMyData((json.userData || null) as UserStats | null)
       })
-      .catch(error => setError(error instanceof Error ? error.message : 'Le tableau est indisponible.'))
+      .catch(error => setError(error instanceof Error ? error.message : 'Le classement est indisponible.'))
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="club-ranking-state"><span className="loading loading-spinner loading-lg"/>Mise à jour du tableau d’honneur…</div>
+  if (loading) return <div className="club-ranking-state"><span className="loading loading-spinner loading-lg"/>Chargement du classement…</div>
   if (error) return <div className="club-ranking-state is-error">{error}</div>
 
   const podium = players.slice(0, 3)
@@ -52,10 +52,10 @@ export default function Leaderboard() {
     {podium.length > 0 ? <div className="club-ranking-podium" aria-label="Podium">{podium.map((player, index) => {
       const rank = index + 1
       return <article key={player.id} className={`club-podium-player rank-${rank}`}><RankMark rank={rank}/><Avatar player={player}/><h2>{player.username}</h2><strong>{player.taux_victoire.toFixed(1)}%</strong><small>{player.parties_gagnees} victoires</small></article>
-    })}</div> : <div className="club-ranking-empty">Les premières tables décideront du tableau d’honneur.</div>}
+    })}</div> : <div className="club-ranking-empty">Terminez des parties pour apparaître dans le classement.</div>}
 
     {myData && myRank && <div className="club-my-rank"><span>Votre place</span><RankMark rank={myRank}/><Avatar player={myData}/><strong>{myData.username}</strong><p>{myData.taux_victoire.toFixed(1)}% de victoires</p></div>}
-    {!canRank && userProfile && <p className="club-ranking-note">Encore {5 - userProfile.parties_jouees} partie{5 - userProfile.parties_jouees > 1 ? 's' : ''} avant votre entrée au tableau d’honneur.</p>}
+    {!canRank && userProfile && <p className="club-ranking-note">Encore {5 - userProfile.parties_jouees} partie{5 - userProfile.parties_jouees > 1 ? 's' : ''} avant d’apparaître dans le classement.</p>}
 
     {players.length > 0 && <div className="club-ranking-list"><header><span>Rang</span><span>Joueur</span><span>Performance</span></header>{players.map((player, index) => <PlayerLine key={player.id} player={player} rank={index + 1} current={player.id === user?.id}/>)}</div>}
     <p className="club-ranking-footnote">Le classement est établi par taux de victoire, puis par série, nombre de parties et Yams réalisés. Cinq parties sont nécessaires pour y apparaître.</p>

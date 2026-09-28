@@ -4,7 +4,7 @@ import GameHistory from '@/components/GameHistory'
 
 export default function ProfilePage() {
   return <div className="club-page">
-    <header className="club-page-header"><p className="club-eyebrow">Carnet de joueur</p><h1 className="club-page-title">Votre histoire autour de la table.</h1><p className="club-page-subtitle">Parcours, records et médailles : tout ce que vos lancers ont laissé derrière eux.</p></header>
+    <header className="club-page-header"><p className="club-eyebrow">Profil</p><h1 className="club-page-title">Vos statistiques.</h1><p className="club-page-subtitle">Retrouvez vos parties, vos records et vos succès.</p></header>
     <div className="club-profile-stack"><UserProfile detailed/><RecentAchievements/><GameHistory/></div>
   </div>
 }

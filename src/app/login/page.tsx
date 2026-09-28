@@ -52,7 +52,7 @@ export default function LoginPage() {
         return
       }
 
-      // Rafraîchir le contexte d'authentification (navigation, Hall, etc.)
+      // Rafraîchir le contexte d'authentification.
       await refreshUserProfile()
 
       setMessage('✅ Connexion réussie ! Redirection...')
@@ -66,7 +66,7 @@ export default function LoginPage() {
 
   return (
     <div className="club-auth-page">
-      <div className="club-auth-intro"><p className="club-eyebrow">Accès membres</p><h2>Reprenez votre place à table.</h2><p>Vos parties, vos succès et vos amis vous attendent dans le Hall.</p></div>
+      <div className="club-auth-intro"><p className="club-eyebrow">Connexion</p><h2>Connectez-vous à votre compte.</h2><p>Retrouvez vos parties, vos statistiques et vos succès.</p></div>
       <form
         onSubmit={handleSubmit}
         className="club-auth-form"
@@ -75,7 +75,7 @@ export default function LoginPage() {
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Connexion
           </h1>
-          <p className="text-base-content/70">Identifiez-vous pour entrer dans le club.</p>
+          <p className="text-base-content/70">Saisissez vos identifiants pour continuer.</p>
         </div>
 
         <div className="space-y-4">

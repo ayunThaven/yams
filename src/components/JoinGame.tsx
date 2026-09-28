@@ -12,7 +12,7 @@ export default function JoinGame() {
 
   function join() {
     const value = code.trim()
-    if (!value) { setError('Saisissez le code inscrit sur votre invitation.'); return }
+    if (!value) { setError('Saisissez le code de la partie.'); return }
     setLoading(true); setError(null); router.push(`/game/${value}`)
   }
 
@@ -22,10 +22,10 @@ export default function JoinGame() {
   }
 
   return <div className="club-join-form">
-    <p className="club-eyebrow">Choisissez votre accès</p>
+    <p className="club-eyebrow">Rejoindre avec un code</p>
     {error && <p className="club-form-error" role="alert">{error}</p>}
-    <div className="club-join-code"><button type="button" onClick={paste} aria-label="Coller le code"><CopyIcon/></button><input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()} placeholder="CODE DE LA TABLE" aria-label="Code de la partie"/><button type="button" onClick={join} disabled={loading || !code.trim()} aria-label="Rejoindre la partie">{loading ? <span className="loading loading-spinner loading-sm"/> : <ArrowRightIcon/>}</button></div>
+    <div className="club-join-code"><button type="button" onClick={paste} aria-label="Coller le code"><CopyIcon/></button><input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()} placeholder="CODE DE LA PARTIE" aria-label="Code de la partie"/><button type="button" onClick={join} disabled={loading || !code.trim()} aria-label="Rejoindre la partie">{loading ? <span className="loading loading-spinner loading-sm"/> : <ArrowRightIcon/>}</button></div>
     <p className="club-join-or" aria-hidden="true"><span>ou</span></p>
-    <button type="button" className="club-button club-button-secondary club-public-lobbies" disabled><span><small>Parties publiques</small><strong>0 lobby ouvert</strong></span><small>Prochainement</small></button>
+    <button type="button" className="club-button club-button-secondary club-public-lobbies" disabled><span><small>Parties publiques</small><strong>0 partie disponible</strong></span><small>Prochainement</small></button>
   </div>
 }

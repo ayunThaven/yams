@@ -42,7 +42,7 @@ export default function CreateGame() {
       result.achievements.forEach(showAchievement)
       setOpen(false)
       router.push(`/game/${result.id}`)
-    } catch { setError('La table n’a pas pu être ouverte. Réessayez.'); setLoading(false) }
+    } catch { setError('La partie n’a pas pu être créée. Réessayez.'); setLoading(false) }
   }
 
   const compactVariantOptions = variants.map((variant, index) => <label key={variant} className={`club-compact-variant ${selected === variant ? 'is-selected' : ''}`}>
@@ -53,20 +53,20 @@ export default function CreateGame() {
 
   const dialog = open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
       <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="variant-title" onMouseDown={e => e.stopPropagation()}>
-        <header><div><p className="club-eyebrow">Nouvelle table</p><h2 id="variant-title">Choisissez vos règles</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
+        <header><div><p className="club-eyebrow">Nouvelle partie</p><h2 id="variant-title">Choisissez un mode de jeu</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
         {error && <p className="club-form-error" role="alert">{error}</p>}
         <div className="club-variant-list">{variants.map((variant, index) => <label key={variant} className={`club-variant-option ${selected === variant ? 'is-selected' : ''}`}>
           <input type="radio" name="variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
           <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i/>
         </label>)}</div>
-        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button></footer>
+        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button></footer>
       </section>
     </div>
 
   return <>
     <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
     <div className="club-create-inline">
-      <p className="club-eyebrow">Choisissez vos règles</p>
+      <p className="club-eyebrow">Choisissez un mode de jeu</p>
       <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'picker' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
       <div className={`club-compact-picker ${compactPickerOpen ? 'is-open' : ''}`}>
         <button type="button" className="club-compact-select" aria-expanded={compactPickerOpen} aria-haspopup="listbox" aria-controls="compact-variant-list" onClick={() => setCompactPickerOpen(value => !value)}>
@@ -79,7 +79,7 @@ export default function CreateGame() {
         </div>}
       </div>
       {error && <p className="club-form-error" role="alert">{error}</p>}
-      <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Ouverture…' : 'Ouvrir la table'}</button>
+      <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button>
     </div>
     {mounted && dialog ? createPortal(dialog, document.body) : null}
   </>

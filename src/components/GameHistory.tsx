@@ -1,5 +1,5 @@
 /**
- * Registre des dernières parties terminées du joueur.
+ * Historique des dernières parties terminées du joueur.
  */
 
 'use client'
@@ -80,7 +80,7 @@ export default function GameHistory() {
       try {
         const response = await fetch('/api/history', { credentials: 'include' })
         const json = await response.json()
-        if (!response.ok) throw new Error(json.error || 'Impossible de charger le registre')
+        if (!response.ok) throw new Error(json.error || 'Impossible de charger l’historique')
         setGames((json.data || []) as Game[])
       } catch (fetchError) {
         console.error("Erreur lors du chargement de l'historique:", fetchError)
@@ -97,8 +97,8 @@ export default function GameHistory() {
     <section className="club-history-panel club-panel" aria-labelledby="history-title">
       <header className="club-history-heading">
         <div>
-          <p className="club-eyebrow">Le registre</p>
-          <h2 id="history-title" className="club-section-title">Dernières tables</h2>
+          <p className="club-eyebrow">Historique</p>
+          <h2 id="history-title" className="club-section-title">Dernières parties</h2>
         </div>
         {!loading && games.length > 0 && <span className="club-history-count">{games.length} parties</span>}
       </header>
@@ -106,11 +106,11 @@ export default function GameHistory() {
       {loading ? (
         <div className="club-history-state" role="status">
           <span className="club-history-spinner" aria-hidden="true" />
-          <span>Ouverture du registre…</span>
+          <span>Chargement de l’historique…</span>
         </div>
       ) : error ? (
         <div className="club-history-state club-history-error" role="alert">
-          <span>Le registre reste fermé pour le moment.</span>
+          <span>L’historique est indisponible pour le moment.</span>
           <button className="club-text-button" type="button" onClick={() => { lastFetchedUserId.current = null; setReloadKey((key) => key + 1) }}>
             Réessayer
           </button>
@@ -118,8 +118,8 @@ export default function GameHistory() {
       ) : games.length === 0 ? (
         <div className="club-history-state club-history-empty">
           <span className="club-history-empty-mark" aria-hidden="true">—</span>
-          <p>Votre registre attend sa première partie.</p>
-          <span>Les dix dernières tables jouées apparaîtront ici.</span>
+          <p>Vous n’avez pas encore terminé de partie.</p>
+          <span>Vos dix dernières parties apparaîtront ici.</span>
         </div>
       ) : (
         <div className="club-history-ledger">
@@ -153,7 +153,7 @@ export default function GameHistory() {
       )}
 
       {!loading && !error && games.length > 0 && (
-        <p className="club-history-note">Les dix dernières parties sont conservées dans ce registre.</p>
+        <p className="club-history-note">Les dix dernières parties sont affichées ici.</p>
       )}
     </section>
   )

@@ -31,9 +31,9 @@ export default function LeaderboardPage() {
   return (
     <div className="club-page">
       <header className="club-page-header">
-        <p className="club-eyebrow">Le tableau d’honneur</p>
-        <h1 className="club-page-title">Les meilleurs autour de la table.</h1>
-        <p className="club-page-subtitle">Le classement récompense la régularité, les séries et les parties qui restent dans les mémoires.</p>
+        <p className="club-eyebrow">Classement</p>
+        <h1 className="club-page-title">Les meilleurs joueurs.</h1>
+        <p className="club-page-subtitle">Comparez les scores, les séries et les statistiques de chaque joueur.</p>
       </header>
       <Leaderboard />
     </div>
