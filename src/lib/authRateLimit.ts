@@ -19,13 +19,15 @@ export type RateLimitResult = 'allowed' | 'limited' | 'unavailable'
 
 export async function allowAuthAttempt(
   request: NextRequest,
-  action: 'login' | 'register' | 'request-reset' | 'backoffice-login' | 'backoffice-mfa',
+  action: 'guest-nickname' | 'guest-session' | 'login' | 'register' | 'request-reset' | 'backoffice-login' | 'backoffice-mfa',
   email?: string
 ): Promise<RateLimitResult> {
   const supabase = createAdminClient()
   if (!supabase) return 'unavailable'
 
   const limits = {
+    'guest-nickname': { limit: 120, window: 60 * 15 },
+    'guest-session': { limit: 10, window: 60 * 60 },
     login: { limit: 10, window: 15 * 60 },
     register: { limit: 5, window: 60 * 60 },
     'request-reset': { limit: 5, window: 60 * 60 },

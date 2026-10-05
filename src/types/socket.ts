@@ -4,6 +4,9 @@ import type { Achievement } from './achievement'
 export type RoomPlayer = {
   id: string
   name: string
+  guestSessionId?: string
+  gamePlayerId?: string
+  isHost?: boolean
   userId?: string
   avatar?: string
   ready?: boolean

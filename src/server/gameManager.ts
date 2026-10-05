@@ -1,5 +1,7 @@
 // Gestionnaire de l'état des parties côté serveur
 
+import { matchesIdentity } from '@/lib/playerIdentity'
+import type { PlayerIdentity } from '@/types/game'
 import { GameState, ScoreCategory, GameVariant, ScoreSheet } from '../types/game'
 import { calculateScore, calculateTotalScore, createEmptyScoreSheet, isScoreSheetComplete } from '../lib/yamsLogic'
 import { canChooseCategory } from '../lib/variantLogic'
@@ -25,11 +27,11 @@ export { restoreGameState }
  * @param userId - UUID de l'utilisateur
  * @param newSocketId - Nouveau socket.id
  */
-export function updatePlayerSocketId(roomId: string, userId: string, newSocketId: string, avatar?: string): boolean {
+export function updatePlayerSocketId(roomId: string, identity: PlayerIdentity | string, newSocketId: string, avatar?: string): boolean {
   const game = getGameState(roomId)
   if (!game) return false
 
-  const player = game.players.find(p => p.userId === userId)
+  const player = game.players.find(p => matchesIdentity(p, typeof identity === 'string' ? { kind: 'USER', userId: identity } : identity))
   if (!player) return false
 
   player.id = newSocketId
@@ -42,7 +44,7 @@ export function updatePlayerSocketId(roomId: string, userId: string, newSocketId
  */
 export function initializeGame(
   roomId: string, 
-  players: { id: string; name: string; userId?: string; avatar?: string }[],
+  players: { id: string; name: string; userId?: string; guestSessionId?: string; gamePlayerId?: string; avatar?: string }[],
   variant: GameVariant = 'classic'
 ): GameState {
   // Mode développement : pré-remplir les scores pour des tests rapides
@@ -53,6 +55,9 @@ export function initializeGame(
       id: p.id,
       name: p.name,
       userId: p.userId,
+      guestSessionId: p.guestSessionId,
+      gamePlayerId: p.gamePlayerId,
+      identityKind: p.userId ? 'USER' : 'GUEST',
       avatar: p.avatar,
       scoreSheet: createEmptyScoreSheet(),
       totalScore: 0,
@@ -218,8 +223,9 @@ export function removePlayer(roomId: string, playerId: string): GameState | null
   if (activePlayers.length === 0) {
     // Plus personne, partie annulée
     clearTurnTimer(roomId)
-    deleteGameState(roomId)
-    return null
+    game.gameStatus = 'finished'
+    game.winner = null
+    return game
   } else if (activePlayers.length === 1) {
     // Un seul joueur reste, il gagne
     clearTurnTimer(roomId)
@@ -325,6 +331,7 @@ export function handleTimerExpired(roomId: string): {
   score: number
   playerName: string
   userId: string | null
+  gamePlayerId?: string
   diceValues: number[]
   turnNumber: number
   totalAfter: number
@@ -365,6 +372,7 @@ export function handleTimerExpired(roomId: string): {
     score: scoreValue,
     playerName,
     userId: currentPlayer.userId ?? null,
+    gamePlayerId: currentPlayer.gamePlayerId,
     diceValues,
     turnNumber,
     totalAfter: updatedGameState.players.find((player) => player.id === currentPlayer.id)?.totalScore ?? currentPlayer.totalScore,

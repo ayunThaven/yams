@@ -72,8 +72,11 @@ export function verifyJwtToken(token: string): AuthUser | null {
     return null
   }
   try {
-    const decoded = jwt.verify(token, secret) as AuthUser
-    return decoded
+    const decoded: unknown = jwt.verify(token, secret, { algorithms: ['HS256'] })
+    if (!decoded || typeof decoded !== 'object') return null
+    const payload = decoded as Record<string, unknown>
+    if (payload.kind === 'GUEST' || typeof payload.id !== 'string' || typeof payload.email !== 'string') return null
+    return { id: payload.id, email: payload.email }
   } catch (error) {
     console.error('[JWT] Erreur lors de la vérification du token:', error)
     return null

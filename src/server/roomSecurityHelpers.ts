@@ -3,11 +3,13 @@
  * Sépare la logique de validation pour améliorer la lisibilité
  */
 
+import { matchesIdentity } from '@/lib/playerIdentity'
+import type { PlayerIdentity } from '@/types/game'
 import { Socket, Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { getGameState } from './gameStateManager'
 
-type Player = { id: string; name: string; userId?: string; avatar?: string }
+type Player = { id: string; name: string; userId?: string; guestSessionId?: string; avatar?: string }
 
 /**
  * Vérifie que la partie existe dans la base de données
@@ -48,14 +50,14 @@ export async function verifyGameExists(
 export function verifyNotAlreadyInWaitingRoom(
   io: Server,
   roomId: string,
-  userId: string,
+  identity: PlayerIdentity,
   socketId: string,
   socket: Socket,
   getPlayersInRoom: (io: Server, roomId: string) => Player[]
 ): boolean {
   const existingPlayers = getPlayersInRoom(io, roomId)
   const alreadyInRoom = existingPlayers.some(player => 
-    player.userId && player.userId === userId && player.id !== socketId
+    matchesIdentity(player, identity) && player.id !== socketId
   )
   
   if (alreadyInRoom) {
@@ -76,13 +78,13 @@ export function verifyNotAlreadyInWaitingRoom(
  */
 export function verifyCanReconnectToGame(
   roomId: string,
-  userId: string,
+  identity: PlayerIdentity,
   socket: Socket
 ): boolean {
   const gameState = getGameState(roomId)
-  if (!gameState || !userId) return false
+  if (!gameState) return false
 
-  const isPlayerInGame = gameState.players.some(p => p.userId === userId)
+  const isPlayerInGame = gameState.players.some(p => matchesIdentity(p, identity))
   if (!isPlayerInGame) {
     socket.emit('error', { 
       message: 'Vous ne pouvez pas rejoindre cette partie en cours.' 

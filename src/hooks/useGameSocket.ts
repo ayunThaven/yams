@@ -10,7 +10,8 @@ import { logger } from '@/lib/logger'
 import { GameState } from '@/types/game'
 import { UserProfile } from '@/types/user'
 import { Achievement } from '@/types/achievement'
-import { fetchUsername, getServerRestartId, saveServerRestartId } from './socketHelpers'
+import type { GuestClientSession } from '@/components/Providers'
+import { getServerRestartId, saveServerRestartId } from './socketHelpers'
 import { setupBasicListeners, setupMessageListeners, setupErrorListeners, setupGameplayListeners } from './socketEventHandlers'
 import { handleServerRestart } from './socketReconnectionHelper'
 
@@ -19,6 +20,7 @@ type Player = { id: string; name: string }
 interface UseGameSocketParams {
   uuid: string
   user: { id: string; email?: string } | null
+  guest?: GuestClientSession | null
   authLoading: boolean
   userProfile?: UserProfile | null
   shouldConnect?: boolean // Permet de retarder la connexion
@@ -46,8 +48,8 @@ interface UseGameSocketReturn {
 export function useGameSocket({
   uuid,
   user,
+  guest,
   authLoading,
-  userProfile,
   shouldConnect = true, // Par défaut, on se connecte
   onAchievementsUnlocked,
 }: UseGameSocketParams): UseGameSocketReturn {
@@ -77,8 +79,8 @@ export function useGameSocket({
     }
 
     // Rediriger vers login si pas connecté
-    if (!user) {
-      router.push('/login')
+    if (!user && !guest) {
+      router.push(`/play?join=${encodeURIComponent(uuid)}`)
       return
     }
 
@@ -97,14 +99,14 @@ export function useGameSocket({
     const initSocket = async () => {
       isConnectingRef.current = true
 
-      const playerName = await fetchUsername(user, userProfile)
-      if (!playerName) return
 
       // Créer la connexion Socket.IO
       const newSocket = io({
         path: '/api/socket',
         transports: ['websocket', 'polling'],
-        reconnection: false,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         timeout: 20000,
         forceNew: true,
         withCredentials: true,
@@ -150,7 +152,7 @@ export function useGameSocket({
 
         if (error.message.includes('Authentication')) {
           alert("Erreur d'authentification. Veuillez vous reconnecter.")
-          router.push('/login')
+          router.push(`/play?join=${encodeURIComponent(uuid)}`)
         }
       })
 
@@ -164,8 +166,8 @@ export function useGameSocket({
         setRoomJoined,
         setPreGameCountdown
       )
-      setupMessageListeners(newSocket, setSystemMessages, setGameEnded, router)
-      setupErrorListeners(newSocket, socketRef, isConnectingRef, setRoomJoined, router)
+      setupMessageListeners(newSocket, setSystemMessages, setGameEnded, router, user ? '/dashboard' : '/play')
+      setupErrorListeners(newSocket, socketRef, isConnectingRef, setRoomJoined, router, user ? '/dashboard' : '/play', user ? '/dashboard' : `/play?join=${encodeURIComponent(uuid)}&retry=1`)
       setupGameplayListeners(newSocket, setDiceRolledTrigger, setTurnTimeLeft)
     }
 
@@ -181,7 +183,7 @@ export function useGameSocket({
       setRoomJoined(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uuid, user, authLoading, shouldConnect])
+  }, [uuid, user?.id, guest?.guestSessionId, authLoading, shouldConnect])
 
   return {
     socket: socketRef.current,

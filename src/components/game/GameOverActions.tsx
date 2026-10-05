@@ -3,6 +3,7 @@
  * Boutons rematch et retour au dashboard
  */
 
+import { useSupabase } from '@/components/Providers'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Socket } from 'socket.io-client'
@@ -28,9 +29,9 @@ export default function GameOverActions({
   gameState,
   mySocketId,
   socket,
-  user,
   amIHost,
 }: GameOverActionsProps) {
+  const { isAnonymous, isGuest } = useSupabase()
   const router = useRouter()
   const [creatingRematch, setCreatingRematch] = useState(false)
   const [rematchAvailable, setRematchAvailable] = useState<string | null>(null)
@@ -53,7 +54,7 @@ export default function GameOverActions({
    * Crée une nouvelle partie (rematch)
    */
   const createRematch = async () => {
-    if (!user) return
+    if (isAnonymous) return
     
     // Empêcher les appels multiples
     if (isCreatingRematch.current) {
@@ -128,7 +129,7 @@ export default function GameOverActions({
     if (socket) {
       socket.disconnect()
     }
-    router.push('/dashboard')
+    router.push(isGuest ? '/play' : '/dashboard')
   }
 
   return (
