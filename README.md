@@ -508,3 +508,27 @@ Sauf autorisation écrite préalable du titulaire des droits, il est interdit de
 La disponibilité publique de ce dépôt GitHub **ne constitue pas une licence open source** et n'accorde aucun droit d'utilisation au-delà de ceux strictement nécessaires à sa consultation via GitHub.
 
 Voir le fichier [`LICENSE`](./LICENSE) pour plus d'informations.
+
+
+## V2 — Mode invité (phase 1)
+
+Appliquer `supabase/migrations/029_guest_mode.sql` **après** la migration 028.
+Configurer `GUEST_JWT_SECRET` avec un secret fort et distinct de `AUTH_JWT_SECRET`.
+La variable est transmise par Docker Compose. Les cookies invités sont toujours Secure
+en production ; le parcours invité nécessite donc HTTPS dans cet environnement.
+
+La landing propose **Jouer maintenant**, puis `/play` permet de choisir un pseudo,
+créer une partie privée Casual ou la rejoindre avec un code. Un lien `/game/CODE`
+conserve sa destination pendant la création de session. La session dure 24 heures sans
+renouvellement automatique. Changer de pseudo efface le cookie et crée ensuite une
+nouvelle identité ; les anciennes lignes et résultats sont conservés.
+
+Les invités ont des résultats de partie et peuvent héberger, jouer, se reconnecter
+et créer une revanche. Ils n'ont ni XP, ni niveau, ni succès, ni rating, ni historique
+personnel. Le dashboard reste réservé aux comptes. La connexion à un compte efface
+le cookie invité sans transférer les résultats.
+
+Validation : `npm run check`, `npm run build`, `npm run build:server`, `npm run test:db`.
+Voir `tests/integration/README.md` pour la base PostgreSQL jetable et les scénarios.
+Les parties publiques, Quick Play, Ranked, OpenSkill et la conversion invité vers
+compte sont réservés aux phases suivantes.

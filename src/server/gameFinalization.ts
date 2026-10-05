@@ -8,6 +8,7 @@ import { trackEvent } from '@/lib/analytics'
 import { getFinalizationAchievementIds } from './achievementRules'
 
 type PersistedResult = {
+  game_player_id?: string
   user_id: string | null
   player_name: string
   score: number
@@ -31,10 +32,11 @@ function toPersistedResults(gameState: GameState, reason: GameEndReason): Persis
     : null
 
   return gameState.players.flatMap((player) => {
-    if (!player.userId) return []
+    if (!player.gamePlayerId && !player.userId) throw new Error('Participant canonique manquant')
 
     return [{
-      user_id: player.userId,
+      game_player_id: player.gamePlayerId,
+      user_id: player.userId ?? null,
       player_name: player.name,
       score: player.totalScore,
       won: !player.abandoned && topScore !== null && player.totalScore === topScore,

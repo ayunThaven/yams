@@ -12,9 +12,9 @@ import { ChevronDownIcon, CloseIcon, PlusCircleIcon } from './icons/ClubIcons'
 
 const variants: GameVariant[] = ['classic', 'descending', 'ascending']
 
-export default function CreateGame() {
+export default function CreateGame({ beforeCreate, disabled = false }: { beforeCreate?: () => Promise<void>; disabled?: boolean } = {}) {
   const router = useRouter()
-  const { user } = useSupabase()
+  const { isAnonymous } = useSupabase()
   const { showAchievement } = useFlashMessage()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -34,15 +34,16 @@ export default function CreateGame() {
   }, [open])
 
   async function create() {
-    if (!user) return router.push('/login')
+    if (isAnonymous && !beforeCreate) return router.push('/play')
     setLoading(true); setError(null)
     try {
+      await beforeCreate?.()
       const result = await createGame(selected)
       if (result.error) { setError(result.error); setLoading(false); return }
       result.achievements.forEach(showAchievement)
       setOpen(false)
       router.push(`/game/${result.id}`)
-    } catch { setError('La partie n’a pas pu être créée. Réessayez.'); setLoading(false) }
+    } catch (err) { setError(err instanceof Error ? err.message : 'La partie n’a pas pu être créée. Réessayez.'); setLoading(false) }
   }
 
   const compactVariantOptions = variants.map((variant, index) => <label key={variant} className={`club-compact-variant ${selected === variant ? 'is-selected' : ''}`}>
@@ -59,12 +60,12 @@ export default function CreateGame() {
           <input type="radio" name="variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
           <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i/>
         </label>)}</div>
-        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button></footer>
+        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading || disabled}>{loading ? 'Création…' : 'Créer la partie'}</button></footer>
       </section>
     </div>
 
   return <>
-    <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
+    <button className="club-button club-button-primary club-create-trigger" disabled={disabled} onClick={() => !isAnonymous || beforeCreate ? setOpen(true) : router.push('/play')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
     <div className="club-create-inline">
       <p className="club-eyebrow">Choisissez un mode de jeu</p>
       <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'picker' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
@@ -79,7 +80,7 @@ export default function CreateGame() {
         </div>}
       </div>
       {error && <p className="club-form-error" role="alert">{error}</p>}
-      <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button>
+      <button className="club-button club-button-primary" onClick={create} disabled={loading || disabled}>{loading ? 'Création…' : 'Créer la partie'}</button>
     </div>
     {mounted && dialog ? createPortal(dialog, document.body) : null}
   </>

@@ -7,7 +7,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isGameRoute = pathname.startsWith('/game/')
   const isBackoffice = pathname.startsWith('/backoffice')
-  const isPublicRoute = ['/', '/login', '/register', '/reset-password'].includes(pathname)
+  const isPublicRoute = ['/', '/play', '/login', '/register', '/reset-password'].includes(pathname)
 
   if (isBackoffice) return <>{children}</>
   if (isGameRoute) return <main className="player-app club-game-root">{children}</main>

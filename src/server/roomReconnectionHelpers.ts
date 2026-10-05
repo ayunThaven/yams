@@ -5,6 +5,8 @@
 import { Socket, Server } from 'socket.io'
 import { getGameState, updatePlayerSocketId } from './gameManager'
 import { cancelDisconnectTimer } from './socketDisconnectHandlers'
+import { matchesIdentity } from '@/lib/playerIdentity'
+import type { PlayerIdentity } from '@/types/game'
 import { GameState } from '../types/game'
 
 /**
@@ -14,7 +16,7 @@ export function handlePlayerReconnection(
   io: Server,
   socket: Socket,
   roomId: string,
-  userId: string,
+  identity: PlayerIdentity,
   playerName: string,
   avatar?: string
 ): void {
@@ -22,13 +24,13 @@ export function handlePlayerReconnection(
   if (!gameState) return
 
   // Mettre à jour le socket.id du joueur dans le gameState
-  const updated = updatePlayerSocketId(roomId, userId, socket.id, avatar)
+  const updated = updatePlayerSocketId(roomId, identity, socket.id, avatar)
   if (updated) {
     // socket.id mis à jour pour ce joueur
   }
   
   // Annuler le timer de déconnexion si il existe
-  const timerCancelled = cancelDisconnectTimer(roomId, userId)
+  const timerCancelled = cancelDisconnectTimer(roomId, identity)
   if (timerCancelled) {
     // Timer de déconnexion annulé pour ce joueur
   }
@@ -44,7 +46,7 @@ export function handlePlayerReconnection(
   io.to(roomId).emit('game_update', updatedGameState)
   
   // Notifier les autres joueurs de la reconnexion
-  notifyReconnection(io, socket, roomId, updatedGameState, userId, playerName)
+  notifyReconnection(io, socket, roomId, updatedGameState, identity, playerName)
 }
 
 /**
@@ -55,11 +57,11 @@ function notifyReconnection(
   socket: Socket,
   roomId: string,
   gameState: GameState,
-  userId: string,
+  identity: PlayerIdentity,
   playerName: string
 ): void {
   // Vérifier si le joueur est en statut abandonné
-  const reconnectingPlayer = gameState.players.find(p => p.userId === userId)
+  const reconnectingPlayer = gameState.players.find(p => matchesIdentity(p, identity))
   const isAbandoned = reconnectingPlayer?.abandoned || false
   
   // Notifier les autres joueurs de la reconnexion
@@ -70,7 +72,7 @@ function notifyReconnection(
     
     // Si c'est le tour du joueur qui se reconnecte, le notifier
     const currentPlayer = gameState.players[gameState.currentPlayerIndex]
-    if (currentPlayer.userId === userId) {
+    if (matchesIdentity(currentPlayer, identity)) {
       io.to(roomId).emit('system_message', `C'est au tour de ${playerName}`)
     }
   }

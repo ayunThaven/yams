@@ -21,12 +21,12 @@ export async function handleTimerExpiredAndRestart(
   const result = handleTimerExpired(roomId)
   if (!result) return
   
-  const { gameState: updatedGameState, category, score, playerName, userId, diceValues, turnNumber, totalAfter, yamsFace } = result
+  const { gameState: updatedGameState, category, score, playerName, userId, gamePlayerId, diceValues, turnNumber, totalAfter, yamsFace } = result
 
   // L'action automatique et son snapshot doivent être durables avant toute diffusion.
-  const persistedAction = userId
+  const persistedAction = gamePlayerId || userId
     ? await saveScoreAction(supabase, updatedGameState, {
-      userId, playerName, turnNumber, category, diceValues, score, totalAfter, yamsFace,
+      gamePlayerId, userId: userId ?? undefined, playerName, turnNumber, category, diceValues, score, totalAfter, yamsFace,
     })
     : await saveGameSnapshot(supabase, updatedGameState)
   if (!persistedAction) {

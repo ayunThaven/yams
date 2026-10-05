@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isSameSiteOrigin } from '@/lib/requestOrigin'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifyJwtToken } from '@/lib/authServer'
+import { resolveRequestIdentity } from '@/server/playerIdentity'
 import { generateGameId } from '@/lib/gameIdGenerator'
 import { unlockActionAchievement } from '@/server/gameFinalization'
 import { trackEvent } from '@/lib/analytics'
 import type { GameVariant } from '@/types/game'
 
-const COOKIE_NAME = 'yams_auth_token'
 const GAME_ID = /^[A-HJ-NP-Z2-9]{8}$/
 const VARIANTS = new Set(['classic', 'ascending', 'descending'])
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get(COOKIE_NAME)?.value
-
-    const authUser = token ? verifyJwtToken(token) : null
-    if (!authUser) {
+    if (!isSameSiteOrigin(request.headers.get('origin'), request.headers.get('host') || request.nextUrl.host)) return NextResponse.json({ error: 'Origine refusée.' }, { status: 403 })
+    const identity = await resolveRequestIdentity(request.cookies)
+    if (!identity) {
       return NextResponse.json(
         { error: 'Non authentifié.' },
         { status: 401 }
@@ -55,7 +54,10 @@ export async function POST(request: NextRequest) {
         {
           id,
           status: 'waiting',
-          owner: authUser.id,
+          owner: identity.kind === 'USER' ? identity.userId : null,
+          guest_owner_session_id: identity.kind === 'GUEST' ? identity.guestSessionId : null,
+          visibility: 'PRIVATE',
+          match_type: 'CASUAL',
           variant,
           created_at: new Date().toISOString(),
         },
@@ -72,9 +74,9 @@ export async function POST(request: NextRequest) {
     }
 
     // All current games are private and can only be joined with their code.
-    await Promise.all([
-      unlockActionAchievement(supabase, authUser.id, 'create_game'),
-      unlockActionAchievement(supabase, authUser.id, 'create_private_game'),
+    if (identity.kind === 'USER') await Promise.all([
+      unlockActionAchievement(supabase, identity.userId, 'create_game'),
+      unlockActionAchievement(supabase, identity.userId, 'create_private_game'),
     ])
     trackEvent('game_created', {
       gameId: id,

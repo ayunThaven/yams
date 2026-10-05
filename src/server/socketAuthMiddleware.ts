@@ -3,17 +3,9 @@
  * Vérifie les tokens JWT et gère la détection de redémarrage serveur
  */
 
+import { isSameSiteOrigin } from '@/lib/requestOrigin'
 import { Socket } from 'socket.io'
-import { verifyToken, getUsernameFromId } from './authMiddleware'
-
-const AUTH_COOKIE_NAME = 'yams_auth_token'
-
-function readCookie(cookieHeader: string | undefined, name: string): string | null {
-  if (!cookieHeader) return null
-  const prefix = `${name}=`
-  const entry = cookieHeader.split(';').map((item) => item.trim()).find((item) => item.startsWith(prefix))
-  return entry ? decodeURIComponent(entry.slice(prefix.length)) : null
-}
+import { resolveSocketIdentity } from './playerIdentity'
 
 /**
  * Middleware d'authentification Socket.IO
@@ -22,6 +14,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | nu
 export function createAuthMiddleware(serverRestartId: string) {
   return async (socket: Socket, next: (err?: Error) => void) => {
     try {
+      if (!isSameSiteOrigin(socket.handshake.headers.origin, socket.handshake.headers.host)) return next(new Error('Authentication error: Origine refusée'))
       // Vérifier l'ID de session serveur pour détecter les redémarrages
       const clientServerRestartId = socket.handshake.auth.serverRestartId
       
@@ -34,29 +27,15 @@ export function createAuthMiddleware(serverRestartId: string) {
       // Stocker cette information pour l'utiliser après la connexion
       socket.data.serverRestarted = serverRestarted
 
-      // Extraire le token des handshake auth ou query
-      const token = readCookie(socket.handshake.headers.cookie, AUTH_COOKIE_NAME)
-
-      if (!token) {
-        console.error('[SOCKET] Connexion refusée: Token manquant')
-        return next(new Error('Authentication error: Token manquant'))
-      }
-
-      // Vérifier le token
-      const { valid, userId, error } = await verifyToken(token as string)
-
-      if (!valid || !userId) {
-        console.error('[SOCKET] Connexion refusée: Token invalide -', error)
-        return next(new Error(`Authentication error: ${error}`))
-      }
-
-      // Stocker les infos utilisateur dans socket.data
-      socket.data.userId = userId
-      socket.data.authenticated = true
-
-      // Récupérer le username depuis la base de données
-      const username = await getUsernameFromId(userId)
-      socket.data.username = username
+      const identity = await resolveSocketIdentity(socket)
+      if (!identity) return next(new Error('Authentication error: Session invalide ou expirée'))
+      socket.data.identity = identity
+      socket.data.identified = true
+      socket.data.authenticated = identity.kind === 'USER'
+      socket.data.userId = identity.userId
+      socket.data.guestSessionId = identity.guestSessionId
+      socket.data.username = identity.playerName
+      socket.data.playerName = identity.playerName
       socket.data.serverRestartId = serverRestartId
 
       next()

@@ -32,6 +32,7 @@ export async function updateFinishedGame(
   }
 
   try {
+    await new GameRepository(supabase).save(gameState)
     const result = await finalizeGame(supabase, gameState, reason)
     if (!result.success) {
       console.error('[DB] Game finalization failed:', result.error)

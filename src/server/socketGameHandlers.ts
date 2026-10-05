@@ -3,6 +3,9 @@
  * Gère roll_dice, toggle_die_lock, choose_score, abandon_game, rematch
  */
 
+import { getSocketPlayerIdentity } from './playerIdentity'
+import { isGameOwner } from '@/lib/playerIdentity'
+import { canChooseCategory } from '@/lib/variantLogic'
 import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { rollDice, toggleDieLock, chooseScore, removePlayer, getGame } from './gameManager'
@@ -29,7 +32,7 @@ export function setupGameHandlers(
       socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+    if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(roomId)) {
       socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
@@ -63,12 +66,13 @@ export function setupGameHandlers(
    */
   socket.on(
     'toggle_die_lock',
-    async ({ roomId, dieIndex }: { roomId: string; dieIndex: number }) => {
+    async (payload: { roomId: string; dieIndex: number }) => {
+      const { roomId, dieIndex } = payload ?? {}
       if (!isValidRoomId(roomId) || !isValidDieIndex(dieIndex)) {
         socket.emit('error', { message: 'Action de jeu invalide.' })
         return
       }
-      if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+      if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(roomId)) {
         socket.emit('error', { message: 'Accès à la partie refusé.' })
         return
       }
@@ -98,12 +102,13 @@ export function setupGameHandlers(
   /**
    * Choisir une catégorie de score
    */
-  socket.on('choose_score', async ({ roomId, category }: { roomId: string; category: ScoreCategory }) => {
+  socket.on('choose_score', async (payload: { roomId: string; category: ScoreCategory }) => {
+    const { roomId, category } = payload ?? {}
     if (!isValidRoomId(roomId) || !isScoreCategory(category)) {
       socket.emit('error', { message: 'Action de jeu invalide.' })
       return
     }
-    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+    if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(roomId)) {
       socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
@@ -116,7 +121,7 @@ export function setupGameHandlers(
     
     const oldTurnNumber = gameBeforeChoice.turnNumber
     const playerBefore = gameBeforeChoice.players.find(p => p.id === playerId)
-    if (!playerBefore) return
+    if (!playerBefore || playerBefore.abandoned || gameBeforeChoice.currentPlayerIndex !== gameBeforeChoice.players.indexOf(playerBefore) || !canChooseCategory(gameBeforeChoice.variant, category, playerBefore.scoreSheet)) return
     const diceValues = gameBeforeChoice.dice.map((die) => die.value)
     const scoreTurnNumber = gameBeforeChoice.turnNumber
     
@@ -130,9 +135,10 @@ export function setupGameHandlers(
       const scoreObtained = playerAfter.scoreSheet[category]
       const categoryLabel = getCategoryLabel(category)
 
-      if (!playerBefore.userId || scoreObtained === null || scoreObtained === undefined) return
+      if (!playerBefore.gamePlayerId || scoreObtained === null || scoreObtained === undefined) return
       const yamsFace = diceValues.every((value) => value === diceValues[0]) ? diceValues[0] : null
       if (!await saveScoreAction(supabase, gameState, {
+        gamePlayerId: playerBefore.gamePlayerId,
         userId: playerBefore.userId,
         playerName: playerAfter.name,
         turnNumber: scoreTurnNumber,
@@ -197,13 +203,12 @@ export function setupGameHandlers(
       socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+    if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(roomId)) {
       socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
     const playerName = socket.data.playerName || 'Un joueur'
-    const userId = socket.data.userId
     const roomState = roomStates.get(roomId)
 
     if (!roomState || !roomState.started) {
@@ -217,7 +222,7 @@ export function setupGameHandlers(
     const gameBeforeRemoval = getGame(roomId)
     let wasCurrentPlayer = false
 
-    if (gameBeforeRemoval && userId) {
+    if (gameBeforeRemoval) {
       const playerIndex = gameBeforeRemoval.players.findIndex((player) => player.id === socket.id)
       wasCurrentPlayer = playerIndex === gameBeforeRemoval.currentPlayerIndex
     }
@@ -282,23 +287,23 @@ export function setupGameHandlers(
    */
   socket.on(
     'rematch_created',
-    ({
-      oldRoomId,
-      newRoomId,
-      hostName,
-    }: {
-      oldRoomId: string
-      newRoomId: string
-      hostName: string
-    }) => {
+    async (payload: { oldRoomId: string; newRoomId: string; hostName?: string }) => {
+      const { oldRoomId, newRoomId } = payload ?? {}
       if (!isValidRoomId(oldRoomId) || !isValidRoomId(newRoomId)) {
         socket.emit('error', { message: 'Identifiant de partie invalide.' })
         return
       }
-      if (!socket.data.authenticated || !socket.rooms.has(oldRoomId)) {
+      if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(oldRoomId)) {
         socket.emit('error', { message: 'Accès à la partie refusé.' })
         return
       }
+
+      const { data: games, error } = await supabase.from('games').select('id, owner, guest_owner_session_id, status, visibility, match_type').in('id', [oldRoomId, newRoomId])
+      const identity = getSocketPlayerIdentity(socket)!
+      const oldGame = games?.find(g => g.id === oldRoomId)
+      const newGame = games?.find(g => g.id === newRoomId)
+      if (error || !oldGame || !newGame || oldGame.status !== 'finished' || newGame.status !== 'waiting' || newGame.visibility !== 'PRIVATE' || newGame.match_type !== 'CASUAL' || !isGameOwner(oldGame, identity) || !isGameOwner(newGame, identity)) return
+      const hostName = socket.data.playerName || 'Hôte'
 
       // Notifier tous les joueurs de l'ancienne room qu'une nouvelle partie est disponible
       socket.to(oldRoomId).emit('rematch_available', {
@@ -317,18 +322,18 @@ export function setupGameHandlers(
       socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
     }
-    if (!socket.data.authenticated || !socket.rooms.has(roomId)) {
+    if (!getSocketPlayerIdentity(socket) || !socket.rooms.has(roomId)) {
       socket.emit('error', { message: 'Accès à la partie refusé.' })
       return
     }
 
     const { data: game } = await supabase
       .from('games')
-      .select('owner, status')
+      .select('owner, guest_owner_session_id, status')
       .eq('id', roomId)
       .maybeSingle()
 
-    if (!game || game.owner !== socket.data.userId || game.status !== 'finished') {
+    if (!game || !isGameOwner(game, getSocketPlayerIdentity(socket)!) || game.status !== 'finished') {
       socket.emit('error', { message: 'Action réservée à l\'hôte de la partie terminée.' })
       return
     }

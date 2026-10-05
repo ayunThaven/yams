@@ -1,3 +1,4 @@
+import { getPlayerIdentity } from '@/lib/playerIdentity'
 import { Server } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import type {
@@ -97,15 +98,14 @@ async function buildPlayerResult(
   player: PlayerGameState,
   reason: GameEndReason
 ): Promise<BuiltPlayerResult | null> {
-  if (!player.userId) {
-    return null
-  }
+  const identity = getPlayerIdentity(player)
+  if (!identity) return null
 
-  const { data: profileBefore } = await getUserProfile(supabase, player.userId)
+  const profileBefore = player.userId ? (await getUserProfile(supabase, player.userId)).data : null
   const yamsCount = countYamsInScoreSheet(player.scoreSheet)
   const abandoned = player.abandoned || reason === 'abandon'
   const won = !abandoned && isWinningPlayer(gameState, player)
-  const xpGained = abandoned
+  const xpGained = identity.kind === 'GUEST' ? 0 : abandoned
     ? -(profileBefore?.level || 1) * 10
     : Math.floor(player.totalScore / 10) + (won ? 25 : 0)
 
@@ -113,7 +113,8 @@ async function buildPlayerResult(
     profileBefore,
     result: {
       gameId: roomId,
-      userId: player.userId,
+      ...identity,
+      gamePlayerId: player.gamePlayerId,
       playerName: player.name,
       score: player.totalScore,
       won,
@@ -134,6 +135,7 @@ async function unlockResultAchievements(
   built: BuiltPlayerResult
 ) {
   const { result, profileBefore } = built
+  if (result.kind !== 'USER') return []
   const directAchievementIds: string[] = []
 
   if (result.abandoned) {
@@ -195,8 +197,9 @@ async function recordAndNotifyPlayerResult(
   player: PlayerGameState,
   built: BuiltPlayerResult
 ): Promise<PlayerResult | null> {
-  const { recorded } = await recordGamePlayerResult(supabase, built.result)
+  const { recorded, error } = await recordGamePlayerResult(supabase, built.result)
 
+  if (error) throw new Error(error)
   if (!recorded) {
     return built.result
   }
@@ -281,12 +284,13 @@ async function finalizeGameInternal({
   emitUnlockedAchievements(io, gameState, persisted.achievements)
 
   const { data: rows, error: resultsError } = await supabase.from('game_results')
-    .select('game_id, user_id, player_name, score, won, abandoned, yams_count, xp_gained, reason, score_sheet, yams_faces')
+    .select('game_id, game_player_id, game_players!inner(guest_session_id), user_id, player_name, score, won, abandoned, yams_count, xp_gained, reason, score_sheet, yams_faces')
     .eq('game_id', roomId)
   if (resultsError) throw new Error(resultsError.message)
-  const playerResults: PlayerResult[] = (rows ?? []).flatMap((row) => row.user_id ? [{
+  const playerResults: PlayerResult[] = (rows ?? []).map((row) => ({
     gameId: row.game_id,
-    userId: row.user_id,
+    ...(row.user_id ? { kind: 'USER' as const, userId: row.user_id } : { kind: 'GUEST' as const, guestSessionId: (row.game_players as unknown as { guest_session_id: string }).guest_session_id }),
+    gamePlayerId: row.game_player_id,
     playerName: row.player_name,
     score: row.score,
     won: row.won,
@@ -296,7 +300,7 @@ async function finalizeGameInternal({
     reason: row.reason as GameEndReason,
     scoreSheet: row.score_sheet,
     yamsFaces: row.yams_faces,
-  }] : [])
+  }))
 
   io.to(roomId).emit('game_update', gameState)
   io.to(roomId).emit('game_ended', {

@@ -6,9 +6,9 @@ export async function recordGamePlayerResult(
   result: PlayerResult
 ): Promise<{ recorded: boolean; error?: string }> {
   // game_results is the canonical, idempotent source for every end path.
-  const { data, error } = await supabase.rpc('record_canonical_game_result', {
+  const { data, error } = await supabase.rpc(result.gamePlayerId ? 'record_player_game_result' : 'record_canonical_game_result', {
     p_game_id: result.gameId,
-    p_user_id: result.userId,
+    ...(result.gamePlayerId ? { p_game_player_id: result.gamePlayerId } : { p_user_id: result.userId }),
     p_player_name: result.playerName,
     p_score: result.score,
     p_won: result.won,

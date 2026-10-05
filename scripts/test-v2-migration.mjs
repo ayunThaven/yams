@@ -1,6 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+const container = process.env.TEST_DATABASE_CONTAINER
+if (container && container !== 'yams-phase1-sql-test') throw new Error('Only the dedicated disposable test container is allowed.')
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) {
   throw new Error('TEST_DATABASE_URL is required for the disposable PostgreSQL test database.')
@@ -13,6 +16,8 @@ if (!['localhost', '127.0.0.1', '::1'].includes(parsed.hostname)
 
 const files = {
   fixture: resolve('tests/sql/v2_fixture.sql'),
+  guestMigration: resolve('supabase/migrations/029_guest_mode.sql'),
+  guestAssertions: resolve('tests/sql/guest_assertions.sql'),
   migration: resolve('supabase/migrations/028_v2_foundations.sql'),
   assertions: resolve('tests/sql/v2_assertions.sql'),
   concurrentSetup: resolve('tests/sql/v2_concurrent_setup.sql'),
@@ -30,9 +35,12 @@ const pgEnv = {
   PGOPTIONS: '-c client_min_messages=warning',
 }
 
+const executable = container ? 'docker' : 'psql'
+function argsFor(args) { return container ? ['exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'yams_v2_test', ...args] : args }
+
 function runFile(file, oldAuthFk) {
-  const result = spawnSync('psql', ['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '-v', `old_auth_fk=${oldAuthFk}`, '-f', file], {
-    stdio: 'inherit', env: pgEnv,
+  const result = spawnSync(executable, argsFor(['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '-v', `old_auth_fk=${oldAuthFk}`, '-f', '-']), {
+    input: readFileSync(file), stdio: ['pipe', 'inherit', 'inherit'], env: pgEnv,
   })
   if (result.error) throw result.error
   if (result.status !== 0) process.exit(result.status ?? 1)
@@ -47,7 +55,7 @@ function runConcurrentFinalization() {
   ])
   const statement = `SELECT public.finalize_game('GAMEC001', '${payload}'::jsonb)`
   const call = () => new Promise((resolveCall, rejectCall) => {
-    const child = spawn('psql', ['-X', '-w', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement], {
+    const child = spawn(executable, argsFor(['-X', '-w', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', statement]), {
       stdio: ['ignore', 'pipe', 'pipe'], env: pgEnv,
     })
     let stderr = ''
@@ -63,6 +71,9 @@ for (const oldAuthFk of ['1', '0']) {
   for (const file of [files.fixture, files.migration, files.migration, files.assertions]) {
     runFile(file, oldAuthFk)
   }
+  runFile(files.guestMigration, oldAuthFk)
+  runFile(files.guestMigration, oldAuthFk)
+  runFile(files.guestAssertions, oldAuthFk)
   runFile(files.concurrentSetup, oldAuthFk)
   await runConcurrentFinalization()
   runFile(files.concurrentAssertions, oldAuthFk)
@@ -71,8 +82,8 @@ for (const oldAuthFk of ['1', '0']) {
 // An active legacy game without a recoverable owner must stop deployment.
 runFile(files.fixture, '1')
 runFile(files.orphan, '1')
-const orphanCheck = spawnSync('psql', ['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '-f', files.migration], {
-  encoding: 'utf8', env: pgEnv,
+const orphanCheck = spawnSync(executable, argsFor(['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '-f', '-']), {
+  input: readFileSync(files.migration), encoding: 'utf8', env: pgEnv,
 })
 if (orphanCheck.error) throw orphanCheck.error
 if (orphanCheck.status === 0

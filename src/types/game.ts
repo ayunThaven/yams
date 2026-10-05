@@ -50,6 +50,9 @@ export interface Die {
 export interface PlayerGameState {
   id: string
   name: string
+  gamePlayerId?: string
+  guestSessionId?: string
+  identityKind?: PlayerIdentity['kind']
   userId?: string  // UUID de l'utilisateur (optionnel pour compatibilité)
   avatar?: string
   scoreSheet: ScoreSheet
@@ -83,9 +86,9 @@ export interface ChooseScoreAction {
   category: ScoreCategory
 }
 
-export interface PlayerResult {
+export type PlayerResult = PlayerIdentity & {
+  gamePlayerId?: string
   gameId: string
-  userId: string
   playerName: string
   score: number
   won: boolean
