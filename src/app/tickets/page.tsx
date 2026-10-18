@@ -51,8 +51,8 @@ export default function TicketsPage() {
     await load()
   }
 
-  return <div className="mx-auto max-w-5xl space-y-8 py-8">
-    <div><h1 className="text-4xl font-bold">Signaler un bug</h1><p className="text-base-content/70">Décrivez précisément le problème et suivez son traitement.</p></div>
+  return <div className="club-page space-y-8">
+    <header className="club-page-header"><p className="club-eyebrow">Assistance</p><h1 className="club-page-title">Signaler un problème.</h1><p className="club-page-subtitle">Décrivez ce qui s’est passé et suivez son traitement.</p></header>
     <form onSubmit={submit} className="card bg-base-100 border border-base-300 shadow-xl"><div className="card-body grid gap-4 md:grid-cols-2">
       <label className="form-control md:col-span-2"><span className="label-text">Titre</span><input className="input input-bordered" name="title" minLength={5} maxLength={160} required /></label>
       <label className="form-control md:col-span-2"><span className="label-text">Description</span><textarea className="textarea textarea-bordered min-h-28" name="description" minLength={10} required /></label>

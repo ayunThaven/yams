@@ -2,6 +2,7 @@
 
 import { Die } from '@/types/game'
 import { useState, useEffect } from 'react'
+import { LockIcon } from '@/components/icons/ClubIcons'
 
 interface DiceProps {
   dice: Array<Die & { originalIndex?: number }>
@@ -119,7 +120,7 @@ function DieComponent({ die, index, onToggleLock, canInteract, isRolling, classN
     >
       {die.locked && !hideLockIndicator && (
         <div className="absolute -top-1 -right-1 w-6 h-6 bg-error rounded-full flex items-center justify-center text-xs z-50">
-          🔒
+          <LockIcon className="h-3.5 w-3.5" />
         </div>
       )}
       <DieDotsDisplay value={displayValue} />

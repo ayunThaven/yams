@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Socket } from 'socket.io-client'
 import { GameState, PlayerGameState, ScoreCategory } from '@/types/game'
 import { calculateScore } from '@/lib/yamsLogic'
 import { canChooseCategory, getNextCategory } from '@/lib/variantLogic'
 import Dice from './Dice'
+import { ChevronDownIcon } from '@/components/icons/ClubIcons'
 
 interface MobileGameBoardProps {
   gameState: GameState
@@ -143,7 +144,7 @@ export default function MobileGameBoard({
                     isRolling={isRolling}
                     rollCount={rollCount}
                     hideLockIndicator
-                    className="h-full w-full"
+                    className="club-mobile-active-dice h-full w-full"
                     dieClassName="h-[4.6rem] w-[4.6rem] rounded-2xl border-2 text-3xl shadow-md active:scale-95"
                   />
                 )}
@@ -188,7 +189,7 @@ export default function MobileGameBoard({
               onToggleLock={myTurn && hasRolled ? onToggleDieLock : undefined}
               canRoll={myTurn && hasRolled && gameState.rollsLeft > 0}
               hideLockIndicator
-              className="flex-1 justify-end gap-2"
+              className="club-mobile-held-dice flex-1 justify-end gap-2"
               dieClassName="h-14 w-14 animate-die-kept rounded-xl border-2 text-2xl shadow-sm active:scale-95"
             />
           ) : (
@@ -197,7 +198,7 @@ export default function MobileGameBoard({
         </div>
       </section>
 
-      <MobileScoreSheet
+      <SharedScoreSheet
         players={orderedPlayers}
         currentPlayerId={currentPlayer.id}
         localPlayerId={localPlayerId}
@@ -284,7 +285,7 @@ function TurnTimer({ seconds }: { seconds: number }) {
   return <span className={`font-mono font-bold ${color}`}>{minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
 }
 
-interface MobileScoreSheetProps {
+interface SharedScoreSheetProps {
   players: PlayerGameState[]
   currentPlayerId: string
   localPlayerId: string
@@ -295,18 +296,47 @@ interface MobileScoreSheetProps {
   onRequestScore: (category: ScoreCategory) => void
 }
 
-function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice, variant, hasRolled, myTurn, onRequestScore }: MobileScoreSheetProps) {
+export function SharedScoreSheet({
+  players,
+  currentPlayerId,
+  localPlayerId,
+  currentDice,
+  variant,
+  hasRolled,
+  myTurn,
+  onRequestScore,
+  showHeader = true,
+  className = '',
+}: SharedScoreSheetProps & { showHeader?: boolean; className?: string }) {
+  const compactScoreSheet = useCompactScoreSheet()
+  const focusedScoreSheet = compactScoreSheet || players.length >= 4
+  const [selectedOpponentId, setSelectedOpponentId] = useState<string | null>(null)
+  const localPlayer = players.find((player) => player.id === localPlayerId)
+  const opponents = players.filter((player) => player.id !== localPlayerId)
+
+  useEffect(() => {
+    if (selectedOpponentId && opponents.some((player) => player.id === selectedOpponentId)) return
+    setSelectedOpponentId(opponents.find((player) => player.id === currentPlayerId)?.id ?? opponents[0]?.id ?? null)
+  }, [currentPlayerId, opponents, selectedOpponentId])
+
+  const selectedOpponent = opponents.find((player) => player.id === selectedOpponentId) ?? opponents[0]
+  const visiblePlayers = focusedScoreSheet && players.length > 2
+    ? [localPlayer, selectedOpponent].filter((player): player is PlayerGameState => Boolean(player))
+    : players
+
   const renderCategory = (category: ScoreCategory, label: string) => (
     <tr key={category} className="border-b border-base-300/75">
       <th scope="row" className="sticky left-0 z-10 min-w-24 bg-base-100 px-3 py-2 text-left text-sm font-medium">{label}</th>
-      {players.map((player) => {
+      {visiblePlayers.map((player) => {
         const isLocalPlayer = player.id === localPlayerId
+        const isActivePlayer = player.id === currentPlayerId
         const isAvailable = player.scoreSheet[category] === null
         const canChoose = isLocalPlayer && myTurn && hasRolled && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
-        const potential = hasRolled && isLocalPlayer && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
+        const potential = hasRolled && isActivePlayer && isAvailable && canChooseCategory(variant, category, player.scoreSheet)
           ? calculateScore(category, currentDice)
           : null
         const isForcedCategory = isLocalPlayer && variant !== 'classic' && getNextCategory(variant, player.scoreSheet) === category
+        const isEmptyScore = player.scoreSheet[category] === null && potential === null
         return (
           <td key={player.id} className={`min-w-[4.7rem] border-l border-base-300/60 p-0 text-center ${player.id === currentPlayerId ? 'bg-primary/10' : ''}`}>
             {canChoose ? (
@@ -314,7 +344,7 @@ function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice
                 +{potential}
               </button>
             ) : (
-              <span className={`block px-2 py-2 ${isForcedCategory && isAvailable ? 'font-bold text-primary underline decoration-primary/40 underline-offset-4' : ''}`}>
+              <span className={`block px-2 py-2 ${isEmptyScore ? 'club-score-empty' : ''} ${isForcedCategory && isAvailable ? 'font-bold text-primary underline decoration-primary/40 underline-offset-4' : ''}`}>
                 {player.scoreSheet[category] ?? (potential !== null ? `+${potential}` : '–')}
               </span>
             )}
@@ -325,17 +355,25 @@ function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice
   )
 
   return (
-    <section className="mx-auto max-w-lg px-4 pb-4 pt-6" aria-label="Feuille de score partagée">
-      <div className="mb-3 flex items-baseline justify-between">
+    <section className={`shared-score-sheet mx-auto max-w-lg px-4 pb-4 pt-6 ${className}`} aria-label="Feuille de score partagée">
+      {showHeader && <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-base font-bold">Feuille de score</h2>
         {variant !== 'classic' && <span className="text-xs text-base-content/55">Ordre imposé</span>}
-      </div>
-      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100 shadow-sm">
+      </div>}
+      {focusedScoreSheet && opponents.length > 1 && selectedOpponent && <details className="club-score-player-picker">
+        <summary><span>Feuille consultée</span><strong>{selectedOpponent.name}</strong><ChevronDownIcon/></summary>
+        <div role="listbox" aria-label="Joueur affiché">
+          {opponents.map((player) => <button key={player.id} type="button" role="option" aria-selected={player.id === selectedOpponent.id} className={player.id === selectedOpponent.id ? 'is-selected' : ''} onClick={(event) => { setSelectedOpponentId(player.id); event.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <span>{player.name}</span>{player.id === currentPlayerId && <small>À jouer</small>}
+          </button>)}
+        </div>
+      </details>}
+      <div className={`${focusedScoreSheet ? 'overflow-hidden' : 'overflow-x-auto'} rounded-2xl border border-base-300 bg-base-100 shadow-sm`}>
         <table className="w-max min-w-full border-collapse text-sm tabular-nums">
           <thead className="border-b border-base-300 bg-base-200/80">
             <tr>
               <th className="sticky left-0 z-20 min-w-24 bg-base-200 px-3 py-3 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-base-content/55">Score</th>
-              {players.map((player) => (
+              {visiblePlayers.map((player) => (
                 <th key={player.id} className={`min-w-[4.7rem] border-l border-base-300/60 px-2 py-2 text-center text-xs ${player.id === currentPlayerId ? 'bg-primary/15 text-primary' : ''}`}>
                   <span className="block truncate font-bold">{player.id === localPlayerId ? 'Vous' : player.name}</span>
                   {player.abandoned && <span className="text-[10px] font-normal text-error">abandonné</span>}
@@ -345,12 +383,12 @@ function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice
           </thead>
           <tbody>
             <tr className="border-b border-base-300 bg-base-200/45">
-              <th colSpan={players.length + 1} className="px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-base-content/50">Haut</th>
+              <th colSpan={visiblePlayers.length + 1} className="px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-base-content/50">Haut</th>
             </tr>
             {UPPER_CATEGORIES.map((category) => renderCategory(category.key, category.label))}
             <tr className="border-b-2 border-base-300 bg-base-200/40">
               <th className="sticky left-0 z-10 bg-base-200 px-3 py-2 text-left text-sm font-bold">Bonus</th>
-              {players.map((player) => {
+              {visiblePlayers.map((player) => {
                 const upper = upperScore(player)
                 const bonusStatus = getBonusStatus(player)
                 return (
@@ -364,20 +402,34 @@ function MobileScoreSheet({ players, currentPlayerId, localPlayerId, currentDice
               })}
             </tr>
             <tr className="border-b border-base-300 bg-base-200/45">
-              <th colSpan={players.length + 1} className="px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-base-content/50">Bas</th>
+              <th colSpan={visiblePlayers.length + 1} className="px-3 py-1.5 text-left text-[10px] font-bold uppercase tracking-[0.16em] text-base-content/50">Bas</th>
             </tr>
             {LOWER_CATEGORIES.map((category) => renderCategory(category.key, category.label))}
           </tbody>
           <tfoot className="border-t-2 border-base-300 bg-base-200">
             <tr>
               <th className="sticky left-0 z-10 bg-base-200 px-3 py-3 text-left text-sm font-bold">TOTAL</th>
-              {players.map((player) => <td key={player.id} className={`min-w-[4.7rem] border-l border-base-300/60 px-2 py-3 text-center font-bold ${player.id === currentPlayerId ? 'bg-primary/15 text-primary' : ''}`}>{player.totalScore}</td>)}
+              {visiblePlayers.map((player) => <td key={player.id} className={`min-w-[4.7rem] border-l border-base-300/60 px-2 py-3 text-center font-bold ${player.id === currentPlayerId ? 'bg-primary/15 text-primary' : ''}`}>{player.totalScore}</td>)}
             </tr>
           </tfoot>
         </table>
       </div>
     </section>
   )
+}
+
+function useCompactScoreSheet() {
+  const [isCompact, setIsCompact] = useState(false)
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px), (pointer: coarse) and (orientation: landscape)')
+    const update = () => setIsCompact(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  return isCompact
 }
 
 function upperScore(player: PlayerGameState): number {

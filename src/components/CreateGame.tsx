@@ -1,183 +1,86 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSupabase } from '@/components/Providers'
-import { useState } from 'react'
-import { GameVariant } from '@/types/game'
-import { VARIANT_NAMES, VARIANT_DESCRIPTIONS } from '@/lib/variantLogic'
-import PlusIcon from './icons/PlusIcon'
-import { createGame } from '@/lib/createGame'
+import { createPortal } from 'react-dom'
+import { useSupabase } from './Providers'
 import { useFlashMessage } from '@/contexts/FlashMessageContext'
+import { createGame } from '@/lib/createGame'
+import { GameVariant } from '@/types/game'
+import { VARIANT_DESCRIPTIONS, VARIANT_NAMES } from '@/lib/variantLogic'
+import { ChevronDownIcon, CloseIcon, PlusCircleIcon } from './icons/ClubIcons'
+
+const variants: GameVariant[] = ['classic', 'descending', 'ascending']
 
 export default function CreateGame() {
   const router = useRouter()
   const { user } = useSupabase()
   const { showAchievement } = useFlashMessage()
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const [selectedVariant, setSelectedVariant] = useState<GameVariant>('classic')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [selected, setSelected] = useState<GameVariant>('classic')
+  const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [compactPickerOpen, setCompactPickerOpen] = useState(false)
 
-  const handleCreate = async () => {
-    if (!user) {
-      return router.push('/login')
-    }
+  useEffect(() => setMounted(true), [])
 
-    setLoading(true)
-    setErrorMessage(null)
-    
-    // Petit délai pour garantir que React affiche le loading avant l'opération async
-    await new Promise(resolve => setTimeout(resolve, 50))
-    
+  useEffect(() => {
+    if (!open) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [open])
+
+  async function create() {
+    if (!user) return router.push('/login')
+    setLoading(true); setError(null)
     try {
-      const { id, error, achievements } = await createGame(selectedVariant)
-
-      if (error) {
-        console.error('[CREATE] ❌ Erreur API:', error)
-        setLoading(false)
-        setErrorMessage(error || 'Erreur inconnue')
-      } else {
-        achievements.forEach(showAchievement)
-        setShowModal(false)
-        await new Promise(resolve => setTimeout(resolve, 200))
-        router.push(`/game/${id}`)
-      }
-    } catch (err) {
-      console.error('[CREATE] ❌ Exception:', err)
-      setLoading(false)
-      setErrorMessage('Erreur inattendue lors de la création de la partie')
-    }
+      const result = await createGame(selected)
+      if (result.error) { setError(result.error); setLoading(false); return }
+      result.achievements.forEach(showAchievement)
+      setOpen(false)
+      router.push(`/game/${result.id}`)
+    } catch { setError('La partie n’a pas pu être créée. Réessayez.'); setLoading(false) }
   }
 
-  const openModal = () => {
-    if (!user) {
-      return router.push('/login')
-    }
-    setShowModal(true)
-  }
+  const compactVariantOptions = variants.map((variant, index) => <label key={variant} className={`club-compact-variant ${selected === variant ? 'is-selected' : ''}`}>
+    <input type="radio" name="compact-variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
+    <span>0{index + 1}</span>
+    <strong>{VARIANT_NAMES[variant]}</strong>
+  </label>)
 
-  return (
-    <>
-      <button
-        onClick={openModal}
-        className="btn btn-primary"
-      >
-        <PlusIcon className="w-4 h-4" />
-        <span>Nouvelle partie</span>
-      </button>
+  const dialog = open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
+      <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="variant-title" onMouseDown={e => e.stopPropagation()}>
+        <header><div><p className="club-eyebrow">Nouvelle partie</p><h2 id="variant-title">Choisissez un mode de jeu</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
+        {error && <p className="club-form-error" role="alert">{error}</p>}
+        <div className="club-variant-list">{variants.map((variant, index) => <label key={variant} className={`club-variant-option ${selected === variant ? 'is-selected' : ''}`}>
+          <input type="radio" name="variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
+          <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i/>
+        </label>)}</div>
+        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button></footer>
+      </section>
+    </div>
 
-      {showModal && (
-        <div className="modal modal-open">
-          <div className="modal-box card-bordered max-w-2xl">
-            <h3 className="font-bold text-2xl mb-6">Choisir une variante</h3>
-            {errorMessage && <div className="alert alert-error mb-4" role="alert">{errorMessage}</div>}
-            
-            <div className="space-y-4">
-              {/* Variante Classique */}
-              <div
-                onClick={() => setSelectedVariant('classic')}
-                className={`card glass cursor-pointer transition-all ${
-                  selectedVariant === 'classic' 
-                    ? 'bg-primary text-primary-content shadow-lg' 
-                    : 'bg-base-200 hover:bg-base-300'
-                }`}
-              >
-                <div className="card-body">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="variant"
-                      className="radio"
-                      checked={selectedVariant === 'classic'}
-                      onChange={() => setSelectedVariant('classic')}
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-lg">{VARIANT_NAMES.classic}</h4>
-                      <p className={selectedVariant === 'classic' ? 'opacity-90' : 'text-base-content/70'}>
-                        {VARIANT_DESCRIPTIONS.classic}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Variante Descendante */}
-              <div
-                onClick={() => setSelectedVariant('descending')}
-                className={`card glass cursor-pointer transition-all ${
-                  selectedVariant === 'descending' 
-                    ? 'bg-primary text-primary-content shadow-lg' 
-                    : 'bg-base-200 hover:bg-base-300'
-                }`}
-              >
-                <div className="card-body">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="variant"
-                      className="radio"
-                      checked={selectedVariant === 'descending'}
-                      onChange={() => setSelectedVariant('descending')}
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-lg">{VARIANT_NAMES.descending}</h4>
-                      <p className={selectedVariant === 'descending' ? 'opacity-90' : 'text-base-content/70'}>
-                        {VARIANT_DESCRIPTIONS.descending}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Variante Montante */}
-              <div
-                onClick={() => setSelectedVariant('ascending')}
-                className={`card glass cursor-pointer transition-all ${
-                  selectedVariant === 'ascending' 
-                    ? 'bg-primary text-primary-content shadow-lg' 
-                    : 'bg-base-200 hover:bg-base-300'
-                }`}
-              >
-                <div className="card-body">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="variant"
-                      className="radio"
-                      checked={selectedVariant === 'ascending'}
-                      onChange={() => setSelectedVariant('ascending')}
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-lg">{VARIANT_NAMES.ascending}</h4>
-                      <p className={selectedVariant === 'ascending' ? 'opacity-90' : 'text-base-content/70'}>
-                        {VARIANT_DESCRIPTIONS.ascending}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-action">
-              <button
-                onClick={() => setShowModal(false)}
-                className="btn"
-                disabled={loading}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleCreate}
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? 'Création...' : 'Créer la partie'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
+  return <>
+    <button className="club-button club-button-primary club-create-trigger" onClick={() => user ? setOpen(true) : router.push('/login')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
+    <div className="club-create-inline">
+      <p className="club-eyebrow">Choisissez un mode de jeu</p>
+      <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'picker' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
+      <div className={`club-compact-picker ${compactPickerOpen ? 'is-open' : ''}`}>
+        <button type="button" className="club-compact-select" aria-expanded={compactPickerOpen} aria-haspopup="listbox" aria-controls="compact-variant-list" onClick={() => setCompactPickerOpen(value => !value)}>
+          <span><small>Variante</small><strong>{VARIANT_NAMES[selected]}</strong></span><ChevronDownIcon/>
+        </button>
+        {compactPickerOpen && <div id="compact-variant-list" className="club-compact-select-menu" role="listbox" aria-label="Variantes disponibles">
+          {variants.map((variant, index) => <button type="button" key={variant} role="option" aria-selected={selected === variant} className={selected === variant ? 'is-selected' : ''} onClick={() => { setSelected(variant); setCompactPickerOpen(false) }}>
+            <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i aria-hidden="true"/>
+          </button>)}
+        </div>}
+      </div>
+      {error && <p className="club-form-error" role="alert">{error}</p>}
+      <button className="club-button club-button-primary" onClick={create} disabled={loading}>{loading ? 'Création…' : 'Créer la partie'}</button>
+    </div>
+    {mounted && dialog ? createPortal(dialog, document.body) : null}
+  </>
 }
-

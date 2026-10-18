@@ -5,7 +5,7 @@
 
 import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { initializeGame } from './gameManager'
+import { getGameState, initializeGame } from './gameManager'
 import { startTurnTimerWithCallbacks } from './timerUtils'
 import { updateGameStatus } from './gameDbUtils'
 import { verifyGameExists, verifyNotAlreadyInWaitingRoom, verifyCanReconnectToGame, fetchUserAvatar } from './roomSecurityHelpers'
@@ -15,6 +15,20 @@ import { unlockActionAchievement } from './gameFinalization'
 
 type Player = { id: string; name: string; userId?: string; avatar?: string; ready?: boolean }
 type RoomState = { started: boolean }
+
+async function hydrateGameAvatars(roomId: string, supabase: SupabaseClient): Promise<void> {
+  const gameState = getGameState(roomId)
+  const userIds = gameState?.players.flatMap((player) => player.userId ? [player.userId] : []) ?? []
+  if (userIds.length === 0) return
+
+  const { data, error } = await supabase.from('users').select('id, avatar_url').in('id', userIds)
+  if (error || !data) return
+
+  const avatars = new Map(data.map((user) => [user.id, user.avatar_url]))
+  gameState?.players.forEach((player) => {
+    if (player.userId) player.avatar = avatars.get(player.userId) || player.avatar
+  })
+}
 
 // Stocke les timers de compte à rebours par room
 const countdownTimers = new Map<string, NodeJS.Timeout>()
@@ -224,7 +238,8 @@ export function setupRoomHandlers(
 
     if (isGameStarted) {
       // La partie est en cours : gérer la reconnexion
-      handlePlayerReconnection(io, socket, roomId, userId, playerName)
+      await hydrateGameAvatars(roomId, supabase)
+      handlePlayerReconnection(io, socket, roomId, userId, playerName, socket.data.avatar)
     } else {
       // La partie n'a pas démarré : envoyer la room_update
       io.to(roomId).emit('room_update', {

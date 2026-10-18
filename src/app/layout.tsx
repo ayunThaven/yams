@@ -9,6 +9,9 @@ import FlashMessages from "@/components/FlashMessages"
 export const metadata: Metadata = {
   title: "Yams Tour par Tour",
   description: "Jeu de Yams en temps réel avec Next.js et Supabase",
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -18,18 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                try {
-                  // next-themes utilise 'theme' comme clé par défaut
-                  const stored = localStorage.getItem('theme');
-                  const theme = stored && (stored === 'yams' || stored === 'yams-dark') 
-                    ? stored 
-                    : 'yams';
-                  document.documentElement.setAttribute('data-theme', theme);
-                } catch (e) {
-                  document.documentElement.setAttribute('data-theme', 'yams');
-                }
-              })();
+              document.documentElement.setAttribute('data-theme', 'yams-dark');
             `,
           }}
         />

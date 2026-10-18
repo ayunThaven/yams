@@ -25,7 +25,7 @@ export { restoreGameState }
  * @param userId - UUID de l'utilisateur
  * @param newSocketId - Nouveau socket.id
  */
-export function updatePlayerSocketId(roomId: string, userId: string, newSocketId: string): boolean {
+export function updatePlayerSocketId(roomId: string, userId: string, newSocketId: string, avatar?: string): boolean {
   const game = getGameState(roomId)
   if (!game) return false
 
@@ -33,6 +33,7 @@ export function updatePlayerSocketId(roomId: string, userId: string, newSocketId
   if (!player) return false
 
   player.id = newSocketId
+  if (avatar) player.avatar = avatar
   return true
 }
 
@@ -41,7 +42,7 @@ export function updatePlayerSocketId(roomId: string, userId: string, newSocketId
  */
 export function initializeGame(
   roomId: string, 
-  players: { id: string; name: string; userId?: string }[],
+  players: { id: string; name: string; userId?: string; avatar?: string }[],
   variant: GameVariant = 'classic'
 ): GameState {
   // Mode développement : pré-remplir les scores pour des tests rapides
@@ -52,6 +53,7 @@ export function initializeGame(
       id: p.id,
       name: p.name,
       userId: p.userId,
+      avatar: p.avatar,
       scoreSheet: createEmptyScoreSheet(),
       totalScore: 0,
       abandoned: false,
@@ -185,11 +187,11 @@ export function chooseScore(
   
   if (game.turnNumber > 13 || allActivePlayersFinished) {
     game.gameStatus = 'finished'
-    // Déterminer le gagnant parmi les joueurs actifs (non-abandonnés)
-    const winner = activePlayers.reduce((prev, current) => 
-      current.totalScore > prev.totalScore ? current : prev
-    )
-    game.winner = winner.name
+    // Les ex æquo partagent la victoire : conserver tous les noms pour
+    // les messages et l'historique, l'interface finale se base sur les scores.
+    const topScore = Math.max(...activePlayers.map((player) => player.totalScore))
+    const winners = activePlayers.filter((player) => player.totalScore === topScore)
+    game.winner = winners.map((player) => player.name).join(' et ')
   }
   
   return game

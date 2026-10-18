@@ -13,6 +13,7 @@ interface PlayerScoreCardsProps {
   socket: Socket
   myTurn: boolean
   onChooseScore: (category: ScoreCategory) => void
+  scoresOnly?: boolean
 }
 
 /**
@@ -23,6 +24,7 @@ export default function PlayerScoreCards({
   socket,
   myTurn,
   onChooseScore,
+  scoresOnly = false,
 }: PlayerScoreCardsProps) {
   const [transitionAnimation, setTransitionAnimation] = useState<'slide-down' | 'slide-up' | null>(
     null
@@ -88,6 +90,13 @@ export default function PlayerScoreCards({
     previousPlayerIndexRef.current = currentIndex
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.currentPlayerIndex])
+
+  if (scoresOnly) {
+    return <div className={myPlayer.abandoned ? 'opacity-50' : ''}>
+      <div className="club-score-owner"><span>{myPlayer.name} · vous</span><strong>{myPlayer.totalScore} points</strong></div>
+      <ScoreGrid scoreSheet={myPlayer.scoreSheet} currentDice={gameState.dice.map(d => d.value)} onChooseScore={onChooseScore} isMyTurn={myTurn && myPlayer.id === socket.id} canChoose={gameState.rollsLeft < 3} variant={gameState.variant}/>
+    </div>
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto">

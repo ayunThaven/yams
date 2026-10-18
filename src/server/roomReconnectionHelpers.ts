@@ -15,13 +15,14 @@ export function handlePlayerReconnection(
   socket: Socket,
   roomId: string,
   userId: string,
-  playerName: string
+  playerName: string,
+  avatar?: string
 ): void {
   const gameState = getGameState(roomId)
   if (!gameState) return
 
   // Mettre à jour le socket.id du joueur dans le gameState
-  const updated = updatePlayerSocketId(roomId, userId, socket.id)
+  const updated = updatePlayerSocketId(roomId, userId, socket.id, avatar)
   if (updated) {
     // socket.id mis à jour pour ce joueur
   }

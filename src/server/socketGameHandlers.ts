@@ -163,10 +163,15 @@ export function setupGameHandlers(
         }
         emitUnlockedAchievements(io, gameState, persisted.achievements)
 
+        const finalists = gameState.players.filter((player) => !player.abandoned)
+        const bestScore = Math.max(...finalists.map((player) => player.totalScore))
+        const tiedWinners = finalists.filter((player) => player.totalScore === bestScore)
         io.to(roomId).emit('game_ended', {
           winner: gameState.winner,
           reason: 'completed',
-          message: `${gameState.winner} remporte la partie !`,
+          message: tiedWinners.length > 1
+            ? `Égalité entre ${gameState.winner} !`
+            : `${gameState.winner} remporte la partie !`,
         })
       } else {
         // Vérifier si on a changé de tour

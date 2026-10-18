@@ -49,19 +49,17 @@ export default function RegisterForm() {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-[70vh] relative overflow-hidden w-full">
-      {/* Fond avec dégradé */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10"></div>
-      
+    <div className="club-auth-page">
+      <div className="club-auth-intro"><p className="club-eyebrow">Créer un compte</p><h2>Commencez à jouer.</h2><p>Choisissez un pseudo, puis créez ou rejoignez une partie.</p></div>
       <form
         onSubmit={handleSubmit}
-        className="bg-base-100 p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md space-y-6 relative z-10 border border-base-300"
+        className="club-auth-form"
       >
         <div className="text-center mb-6">
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Inscription
           </h1>
-          <p className="text-base-content/70">Rejoignez la communauté Yams !</p>
+          <p className="text-base-content/70">Renseignez vos informations pour continuer.</p>
         </div>
 
         <div className="space-y-4">
@@ -114,7 +112,6 @@ export default function RegisterForm() {
             </>
           ) : (
             <>
-              <span>✨</span>
               <span>S&apos;inscrire</span>
             </>
           )}
@@ -126,7 +123,7 @@ export default function RegisterForm() {
           </div>
         )}
 
-        <div className="divider">ou</div>
+        <div className="club-auth-separator">ou</div>
 
         <p className="text-center text-sm text-base-content/70">
           Déjà un compte ?{' '}
