@@ -1,3 +1,6 @@
+-- Each migration stage gets an independent concurrency scenario.
+DELETE FROM public.games WHERE id = 'GAMEC001';
+DROP TABLE IF EXISTS public.v2_concurrent_before;
 INSERT INTO public.games(id, owner, status)
 VALUES ('GAMEC001', '00000000-0000-0000-0000-000000000003', 'in_progress');
 CREATE TABLE public.v2_concurrent_before AS
