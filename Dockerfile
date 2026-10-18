@@ -1,4 +1,4 @@
-FROM node:20 AS builder
+FROM node:24.22.0-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 RUN npm run build:server
 
-FROM node:20-alpine AS runner
+FROM node:24.22.0-bookworm-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production

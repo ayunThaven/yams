@@ -6,13 +6,11 @@ npm-debug.log
 .next
 out
 build
+dist
 
-# Environnement
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Environnement : exclure tous les fichiers de secrets, quel que soit le mode
+.env*
+**/.env*
 
 # Git
 .git
