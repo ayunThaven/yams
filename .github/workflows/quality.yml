@@ -27,3 +27,13 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run build:server
+
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build and validate Docker image (no external services)
+        run: bash scripts/validate-docker.sh
