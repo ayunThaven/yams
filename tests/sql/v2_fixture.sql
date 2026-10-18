@@ -85,6 +85,9 @@ CREATE TABLE public.game_player_results (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE
 );
 
+-- Model historical client grants so 029 privilege assertions test revocation.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.game_players, public.game_results TO anon, authenticated;
+
 CREATE FUNCTION public.handle_updated_at() RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at := NOW(); RETURN NEW; END $$;
 CREATE FUNCTION public.xp_for_level(p_level INTEGER) RETURNS INTEGER LANGUAGE sql IMMUTABLE AS $$
