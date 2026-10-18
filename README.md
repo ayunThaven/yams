@@ -170,14 +170,16 @@ Les résultats d'une partie sont enregistrés de manière idempotente afin d'év
 
 ---
 
+Guide de développement local : [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## 🚀 Installation locale
 
 ### Prérequis
 
 Vous devez disposer au minimum de :
 
-* Node.js
-* npm
+* Node.js **24.22.0** (`nvm install && nvm use`)
+* npm **11.19.1**
 * un projet Supabase
 
 Clonez ensuite le dépôt :
@@ -242,7 +244,7 @@ Si `BREVO_API_KEY` n'est pas configurée, les emails ne sont pas envoyés.
 
 ```env
 PORT=3000
-NODE_ENV=development
+# Laisser NODE_ENV absent de .env.local ; les commandes sélectionnent leur mode.
 ```
 
 ### URL de l'application
@@ -334,7 +336,7 @@ npm run backoffice:bootstrap -- --email=admin@example.com
 ```
 
 Pour tester en local avec le serveur sur `http://localhost:3000`, définir
-`BACKOFFICE_COOKIE_SECURE=false` dans `.env`, puis générer le lien local :
+`BACKOFFICE_COOKIE_SECURE=false` dans `.env.local`, puis générer le lien local :
 
 ```bash
 npm run backoffice:bootstrap -- --email=admin@example.com --base-url=http://localhost:3000
@@ -348,7 +350,7 @@ npm run backoffice:bootstrap -- --email=admin@example.com --base-url=http://loca
 
 Le lien reçu autorise un seul appareil. Sans cet appareil autorisé, les pages et API du back-office répondent `404`.
 
-## Docker
+### Lancer le serveur compilé
 
 Lancez ensuite le serveur :
 
@@ -360,7 +362,9 @@ npm start
 
 ## 🐳 Docker
 
-Le projet peut également être lancé avec Docker Compose :
+Docker Compose lit `.env` par défaut, tandis que le serveur de développement
+charge `.env.local`. Voir [DEVELOPMENT.md](DEVELOPMENT.md) avant de lancer Docker.
+Les commandes suivantes concernent un environnement de déploiement autorisé :
 
 ```bash
 docker compose up -d --build
