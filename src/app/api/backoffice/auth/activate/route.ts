@@ -28,10 +28,20 @@ export async function POST(request: NextRequest) {
   let secret: string
   let uri: string
   let user: { id: string }
-  if (pendingUser && !pendingUser.totp_enabled && pendingUser.totp_secret_encrypted) {
+  if (pendingUser && !pendingUser.totp_enabled) {
     user = pendingUser
-    secret = decryptTotpSecret(pendingUser.totp_secret_encrypted)
-    uri = createTotpUri(invitation.email, secret)
+    const enrollment = pendingUser.totp_secret_encrypted
+      ? { secret: decryptTotpSecret(pendingUser.totp_secret_encrypted), uri: createTotpUri(invitation.email, decryptTotpSecret(pendingUser.totp_secret_encrypted)) }
+      : createTotpEnrollment(invitation.email)
+    secret = enrollment.secret
+    uri = enrollment.uri
+    const { error } = await supabase.from('backoffice_users').update({
+      password_hash: await bcrypt.hash(body.password, 12),
+      role: invitation.role,
+      totp_secret_encrypted: encryptTotpSecret(secret),
+      totp_enabled: false,
+    }).eq('id', user.id)
+    if (error) return NextResponse.json({ error: 'Réinitialisation impossible.' }, { status: 409 })
   } else {
     if (pendingUser) return NextResponse.json({ error: 'Compte déjà activé.' }, { status: 409 })
     const enrollment = createTotpEnrollment(invitation.email)
