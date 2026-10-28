@@ -17,7 +17,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - 127.0.0.1:5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d yams_v2_test"
           --health-interval 10s
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24.22.0
           cache: npm
       - run: npm ci
       - run: npm run lint
