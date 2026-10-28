@@ -3,7 +3,8 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { GameState } from '@/types/game'
 
 export type ScoreActionWrite = {
-  userId: string
+  gamePlayerId?: string
+  userId?: string
   playerName: string
   turnNumber: number
   category: string
@@ -54,9 +55,9 @@ export class GameRepository {
       const expectedVersion = snapshotVersions.get(snapshot.roomId) ?? 0
       const turnExpiresAt = snapshot.turnStartTime && snapshot.turnTimeLeft !== undefined
         ? new Date(snapshot.turnStartTime + snapshot.turnTimeLeft * 1000).toISOString() : null
-      const { data, error } = await this.supabase.rpc('record_score_action_and_snapshot', {
+      const { data, error } = await this.supabase.rpc(action.gamePlayerId ? 'record_player_score_action_and_snapshot' : 'record_score_action_and_snapshot', {
         p_game_id: snapshot.roomId,
-        p_user_id: action.userId,
+        ...(action.gamePlayerId ? { p_game_player_id: action.gamePlayerId } : { p_user_id: action.userId }),
         p_player_name: action.playerName,
         p_turn_number: action.turnNumber,
         p_category: action.category,
@@ -90,13 +91,35 @@ export class GameRepository {
     snapshotVersions.set(gameState.roomId, data)
   }
 
+  async load(gameId: string): Promise<GameState | null> {
+    const { data, error } = await this.supabase.from('game_snapshots').select('state, version').eq('game_id', gameId).maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    snapshotVersions.set(gameId, data.version)
+    await this.hydrateParticipants(data.state as GameState)
+    return data.state as GameState
+  }
+
+  private async hydrateParticipants(state: GameState): Promise<void> {
+    for (const player of state.players) {
+      if (player.gamePlayerId) continue
+      if (!player.userId) throw new Error('Snapshot participant identity missing')
+      const { data, error } = await this.supabase.rpc('ensure_user_game_player', {
+        p_game_id: state.roomId, p_user_id: player.userId, p_player_name: player.name,
+      })
+      if (error || typeof data !== 'string') throw new Error(error?.message || 'Snapshot participant missing')
+      player.gamePlayerId = data
+      player.identityKind = 'USER'
+    }
+  }
+
   async loadActive(): Promise<StoredGameSnapshot[]> {
     const { data, error } = await this.supabase
       .from('game_snapshots')
       .select('game_id, state, version, turn_expires_at, games!inner(status)')
       .in('games.status', ['waiting', 'in_progress'])
     if (error) throw new Error(error.message)
-    return (data ?? []).map((row) => {
+    const snapshots = (data ?? []).map((row) => {
       const snapshot = row as unknown as { game_id: string; state: GameState; version: number; turn_expires_at: string | null }
       snapshotVersions.set(snapshot.game_id, snapshot.version)
       return {
@@ -106,5 +129,7 @@ export class GameRepository {
         turnExpiresAt: snapshot.turn_expires_at ? new Date(snapshot.turn_expires_at).getTime() : null,
       }
     })
+    for (const snapshot of snapshots) await this.hydrateParticipants(snapshot.state)
+    return snapshots
   }
 }

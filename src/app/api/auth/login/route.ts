@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { allowAuthAttempt } from '@/lib/authRateLimit'
+import { GUEST_COOKIE_NAME, guestCookieOptions } from '@/lib/guestSession'
 import { authenticateUser } from '@/lib/authServer'
 
 const COOKIE_NAME = 'yams_auth_token'
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
       path: '/',
       expires: new Date(Date.now() + expiresIn * 1000),
     })
+    response.cookies.set(GUEST_COOKIE_NAME, '', { ...guestCookieOptions(new Date(0)), maxAge: 0 })
     return response
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur lors de la connexion.'

@@ -30,10 +30,12 @@ export default function GamePage() {
   const params = useParams()
   const uuid = params?.uuid as string
   const router = useRouter()
-  const { user, userProfile, isLoading: authLoading } = useSupabase()
+  const { user, session, userProfile, isLoading: authLoading } = useSupabase()
   const { setIsInActiveGame, setSocket, setRoomId } = useGameProtection()
   const { showAchievement } = useFlashMessage()
   const userId = user?.id
+  const guestSessionId = session.kind === 'GUEST' ? session.guestSessionId : undefined
+  const home = user ? '/dashboard' : '/play'
 
   // Vérification de l'existence de la partie
   const [gameExists, setGameExists] = useState<boolean | null>(null)
@@ -56,6 +58,7 @@ export default function GamePage() {
     {
       uuid,
       user,
+      guest: session.kind === 'GUEST' ? session : null,
       authLoading,
       userProfile, // Passer le profil pour éviter une requête supplémentaire
       shouldConnect: gameExists === true, // Ne se connecter que si la partie existe
@@ -73,10 +76,10 @@ export default function GamePage() {
 
     return (
       gameState.players.find(
-        (p) => p.userId === userId || p.id === socket?.id
+        (p) => (!!userId && p.userId === userId) || (!!guestSessionId && p.guestSessionId === guestSessionId) || p.id === socket?.id
       ) ?? null
     )
-  }, [gameState?.players, userId, socket?.id])
+  }, [gameState?.players, userId, guestSessionId, socket?.id])
 
   const isAbandoned = myPlayer?.abandoned || false
   const isGameFinished = gameEnded || gameState?.gameStatus === 'finished'
@@ -89,7 +92,7 @@ export default function GamePage() {
   // État pour la variante de la partie
   const [variant, setVariant] = useState<GameVariant>('classic')
   const [variantLoading, setVariantLoading] = useState(true)
-  const [ownerId, setOwnerId] = useState<string | null>(null)
+  const [ownerIsMe, setOwnerIsMe] = useState(false)
   const [maxPlayers, setMaxPlayers] = useState<number>(4)
 
   // Référence pour éviter de rejouer le son de début de partie plusieurs fois
@@ -147,11 +150,12 @@ export default function GamePage() {
         const res = await fetch(`/api/games/${uuid}/meta`)
         const json = await res.json()
 
+        if (res.status === 401) { router.replace(`/play?join=${encodeURIComponent(uuid)}`); return }
         if (!res.ok || !json.data) {
           if (!isRedirectingRef.current) {
             isRedirectingRef.current = true
             alert('Cette partie n\'existe pas ou a été supprimée.')
-            router.replace('/dashboard')
+            router.replace(home)
           }
           return
         }
@@ -159,7 +163,7 @@ export default function GamePage() {
         // La partie existe, on peut continuer
         setGameExists(true)
         setVariant(json.data.variant || 'classic')
-        setOwnerId(json.data.owner || null)
+        setOwnerIsMe(json.data.isHost === true)
         setMaxPlayers(json.data.max_players || 4)
         setVariantLoading(false)
       } catch (err) {
@@ -167,13 +171,13 @@ export default function GamePage() {
         if (!isRedirectingRef.current) {
           isRedirectingRef.current = true
           alert('Erreur lors de la vérification de la partie.')
-          router.replace('/dashboard')
+          router.replace(home)
         }
       }
     }
     
     checkGameExists()
-  }, [uuid, authLoading, router])
+  }, [uuid, authLoading, router, home])
 
   // Gérer l'animation des dés
   useEffect(() => {
@@ -213,7 +217,7 @@ export default function GamePage() {
     // Autoriser la navigation après avoir cliqué sur "Abandonner"
     canLeaveWithoutWarning.current = true
     handleLeaveGame(socket, uuid, started, () => {
-      router.push('/dashboard')
+      router.push(home)
     })
   }
 
@@ -279,7 +283,7 @@ export default function GamePage() {
 
   // Écran de fin de partie
   if (gameEnded || gameState.gameStatus === 'finished') {
-    const amIHost = !!ownerId && !!user?.id && ownerId === user.id
+    const amIHost = ownerIsMe
     return (
       <GameOver
         gameState={gameState}

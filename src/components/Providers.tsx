@@ -6,12 +6,15 @@ import { UserProfile } from "@/types/user"
 import { createClient } from "@/lib/supabase/browser"
 import { SupabaseClient } from "@supabase/supabase-js"
 
-type AuthUser = {
-  id: string
-  email?: string
-}
+import type { ClientSession, ClientAuthUser as AuthUser, GuestClientSession } from '@/types/session'
+import { fetchClientSession } from '@/lib/clientSession'
+export type { GuestClientSession, ClientSession } from '@/types/session'
 
 type SupabaseContextType = {
+  session: ClientSession
+  isUser: boolean
+  isGuest: boolean
+  isAnonymous: boolean
   user: AuthUser | null
   userProfile: UserProfile | null
   isLoading: boolean
@@ -33,6 +36,7 @@ export function useSupabase() {
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const [guest, setGuest] = useState<GuestClientSession | null>(null)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -82,18 +86,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   const fetchAuthAndProfile = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' })
-      if (!res.ok) {
-        setUser(null)
-        setUserProfile(null)
-        writeCachedAuthAndProfile(null, null)
-        return
-      }
-      const data = await res.json()
-      setUser(data.user)
-      setUserProfile(data.profile)
-      writeCachedAuthAndProfile(data.user, data.profile)
+      const next = await fetchClientSession()
+      const nextUser = next.kind === 'USER' ? next.user : null
+      const nextProfile = next.kind === 'USER' ? next.profile : null
+      setUser(nextUser)
+      setUserProfile(nextProfile)
+      setGuest(next.kind === 'GUEST' ? next : null)
+      writeCachedAuthAndProfile(nextUser, nextProfile)
     } catch (error) {
+      setGuest(null)
       console.error('Erreur récupération auth/me:', error)
       setUser(null)
       setUserProfile(null)
@@ -131,8 +132,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAuthAndProfile, readCachedAuthAndProfile])
 
+  const session: ClientSession = user ? { kind: 'USER', user, profile: userProfile } : guest ? { kind: 'GUEST', ...guest } : { kind: 'NONE' }
   return (
-    <SupabaseContext.Provider value={{ user, userProfile, isLoading, refreshUserProfile, supabase }}>
+    <SupabaseContext.Provider value={{ session, isUser: session.kind === 'USER', isGuest: session.kind === 'GUEST', isAnonymous: session.kind === 'NONE', user, userProfile, isLoading, refreshUserProfile, supabase }}>
       <ThemeProvider 
         attribute="data-theme" 
         defaultTheme="yams-dark"

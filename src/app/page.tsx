@@ -16,8 +16,9 @@ export default function HomePage() {
         <h1>Les dés sont jetés.<br/><em>À vous de jouer.</em></h1>
         <p className="club-hero-lead">Jouez au Yams avec vos proches, en ligne et en temps réel.</p>
         <div className="club-hero-actions">
-          <Link href={user ? '/dashboard' : '/register'} className="club-button club-button-primary">{user ? 'Accéder à l’accueil' : 'Créer un compte'}<ArrowRightIcon className="h-5 w-5"/></Link>
-          {!user && <Link href="/login" className="club-button club-button-secondary">J’ai déjà un compte</Link>}
+          <Link href={user ? '/dashboard' : '/play'} className="club-button club-button-primary">{user ? 'Accéder à l’accueil' : 'Jouer maintenant'}<ArrowRightIcon className="h-5 w-5"/></Link>
+          {!user && <Link href="/register" className="club-button club-button-secondary">Créer un compte</Link>}
+          {!user && <Link href="/login" className="club-button club-button-secondary">Se connecter</Link>}
         </div>
         <dl className="club-hero-facts"><div><dt>3</dt><dd>variantes</dd></div><div><dt>8</dt><dd>joueurs</dd></div><div><dt>13</dt><dd>tours décisifs</dd></div></dl>
       </div>

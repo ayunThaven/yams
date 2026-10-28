@@ -283,6 +283,18 @@ Elles permettent notamment de créer et maintenir :
 
 Appliquez les migrations dans leur ordre avant de lancer l'application sur une nouvelle base.
 
+La migration `028_v2_foundations.sql` prépare les sessions invitées, les parties
+`PRIVATE`/`PUBLIC` et `CASUAL`/`RANKED`, et fait de `game_players` l'identité
+canonique des participants. Elle conserve `PRIVATE` et `CASUAL` pour les parties
+actuelles. Les résultats et actions sont liés au participant par une clé
+composite incluant la partie ; leur ancien `user_id` est synchronisé par la base
+pour compatibilité. Les comptes possédant un historique de jeu ne peuvent plus
+être supprimés physiquement, afin de préserver cet historique. Une partie
+ancienne et déjà terminée sans hôte fiable porte `legacy_hostless` ; une partie
+active sans hôte bloque la migration avec ses identifiants dans l'erreur.
+`npm run test:db` vérifie cette migration sur une base PostgreSQL locale jetable
+nommée `yams_v2_test` via `TEST_DATABASE_URL`.
+
 ---
 
 ## 💻 Lancer l'application
@@ -496,3 +508,27 @@ Sauf autorisation écrite préalable du titulaire des droits, il est interdit de
 La disponibilité publique de ce dépôt GitHub **ne constitue pas une licence open source** et n'accorde aucun droit d'utilisation au-delà de ceux strictement nécessaires à sa consultation via GitHub.
 
 Voir le fichier [`LICENSE`](./LICENSE) pour plus d'informations.
+
+
+## V2 — Mode invité (phase 1)
+
+Appliquer `supabase/migrations/029_guest_mode.sql` **après** la migration 028.
+Configurer `GUEST_JWT_SECRET` avec un secret fort et distinct de `AUTH_JWT_SECRET`.
+La variable est transmise par Docker Compose. Les cookies invités sont toujours Secure
+en production ; le parcours invité nécessite donc HTTPS dans cet environnement.
+
+La landing propose **Jouer maintenant**, puis `/play` permet de choisir un pseudo,
+créer une partie privée Casual ou la rejoindre avec un code. Un lien `/game/CODE`
+conserve sa destination pendant la création de session. La session dure 24 heures sans
+renouvellement automatique. Changer de pseudo efface le cookie et crée ensuite une
+nouvelle identité ; les anciennes lignes et résultats sont conservés.
+
+Les invités ont des résultats de partie et peuvent héberger, jouer, se reconnecter
+et créer une revanche. Ils n'ont ni XP, ni niveau, ni succès, ni rating, ni historique
+personnel. Le dashboard reste réservé aux comptes. La connexion à un compte efface
+le cookie invité sans transférer les résultats.
+
+Validation : `npm run check`, `npm run build`, `npm run build:server`, `npm run test:db`.
+Voir `tests/integration/README.md` pour la base PostgreSQL jetable et les scénarios.
+Les parties publiques, Quick Play, Ranked, OpenSkill et la conversion invité vers
+compte sont réservés aux phases suivantes.

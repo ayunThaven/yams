@@ -9,7 +9,7 @@ import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.share
 import { GameState } from '@/types/game'
 import { logger } from '@/lib/logger'
 
-type Player = { id: string; name: string; ready?: boolean }
+type Player = { id: string; name: string; ready?: boolean; isHost?: boolean }
 
 /**
  * Configure les listeners de base (room_update, game_started, game_update)
@@ -27,7 +27,7 @@ export function setupBasicListeners(
   socket.on('room_update', (room: { players: Player[]; started: boolean }) => {
     setPlayers(room.players)
     setStarted(room.started)
-    const amIHost = room.players[0]?.id === socket.id
+    const amIHost = room.players.some(p => p.id === socket.id && p.isHost)
     setIsHost(amIHost)
     setRoomJoined(true)
   })
@@ -69,7 +69,8 @@ export function setupMessageListeners(
   socket: Socket,
   setSystemMessages: Dispatch<SetStateAction<string[]>>,
   setGameEnded: Dispatch<SetStateAction<boolean>>,
-  router: AppRouterInstance
+  router: AppRouterInstance,
+  home = '/dashboard'
 ): void {
   // Message système
   socket.on('system_message', (message: string) => {
@@ -86,7 +87,7 @@ export function setupMessageListeners(
   socket.on('host_left_finished_game', (data: { message: string }) => {
     logger.info('Hôte a quitté la partie terminée:', data.message)
     alert(data.message)
-    router.replace('/dashboard')
+    router.replace(home)
   })
 }
 
@@ -98,12 +99,14 @@ export function setupErrorListeners(
   socketRef: { current: Socket | null },
   isConnectingRef: { current: boolean },
   setRoomJoined: Dispatch<SetStateAction<boolean>>,
-  router: AppRouterInstance
+  router: AppRouterInstance,
+  home = '/dashboard',
+  retryPath = home
 ): void {
   // Partie introuvable
   socket.on('game_not_found', (data: { message: string }) => {
     logger.error('Partie introuvable:', data.message)
-    router.replace('/dashboard')
+    router.replace(home)
   })
 
   // Erreur générale
@@ -120,7 +123,7 @@ export function setupErrorListeners(
     setRoomJoined(false)
     
     alert(data.message)
-    router.replace('/dashboard')
+    router.replace(retryPath)
   })
 
   // Erreur de connexion

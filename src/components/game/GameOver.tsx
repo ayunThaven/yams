@@ -22,7 +22,7 @@ interface GameOverProps {
  * Composant d'écran de fin de partie
  */
 export default function GameOver({ gameState, mySocketId, socket, amIHost }: GameOverProps) {
-  const { userProfile } = useSupabase()
+  const { userProfile, isGuest } = useSupabase()
 
   // Trier les joueurs pour afficher le classement.
   const sortedPlayers = [...gameState.players].sort((a, b) => {
@@ -70,6 +70,7 @@ export default function GameOver({ gameState, mySocketId, socket, amIHost }: Gam
         isWinner={isWinner}
       />
 
+      {isGuest && <p>Créez un compte pour profiter de la progression, des statistiques et des succès lors de vos prochaines parties.</p>}
       {/* Actions */}
       <GameOverActions
         gameState={gameState}

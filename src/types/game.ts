@@ -2,6 +2,20 @@
 
 export type GameVariant = 'classic' | 'descending' | 'ascending'
 
+export type GameVisibility = 'PRIVATE' | 'PUBLIC'
+export type MatchType = 'CASUAL' | 'RANKED'
+
+/** A persisted participant always has exactly one server-owned identity. */
+export type PlayerIdentity =
+  | { kind: 'USER'; userId: string; guestSessionId?: never }
+  | { kind: 'GUEST'; guestSessionId: string; userId?: never }
+
+export type GameParticipant = PlayerIdentity & {
+  id: string
+  gameId: string
+  playerName: string
+}
+
 export type GameEndReason = 'completed' | 'abandon' | 'timeout' | 'server_interrupted'
 
 export type ScoreCategory = 
@@ -36,6 +50,9 @@ export interface Die {
 export interface PlayerGameState {
   id: string
   name: string
+  gamePlayerId?: string
+  guestSessionId?: string
+  identityKind?: PlayerIdentity['kind']
   userId?: string  // UUID de l'utilisateur (optionnel pour compatibilité)
   avatar?: string
   scoreSheet: ScoreSheet
@@ -69,9 +86,9 @@ export interface ChooseScoreAction {
   category: ScoreCategory
 }
 
-export interface PlayerResult {
+export type PlayerResult = PlayerIdentity & {
+  gamePlayerId?: string
   gameId: string
-  userId: string
   playerName: string
   score: number
   won: boolean

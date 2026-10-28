@@ -31,7 +31,15 @@ export async function middleware(request: NextRequest) {
   // Routes protégées
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/game/')
 
-  if (isProtectedRoute && !hasAuthCookie) {
+  if (pathname.startsWith('/game/') && !hasAuthCookie && !request.cookies.get('yams_guest_token')?.value) {
+    const playUrl = request.nextUrl.clone()
+    playUrl.pathname = '/play'
+    playUrl.search = ''
+    playUrl.searchParams.set('join', pathname.slice('/game/'.length))
+    return NextResponse.redirect(playUrl)
+  }
+
+  if (isProtectedRoute && !pathname.startsWith('/game/') && !hasAuthCookie) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('next', pathname)
