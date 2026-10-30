@@ -530,5 +530,8 @@ le cookie invité sans transférer les résultats.
 
 Validation : `npm run check`, `npm run build`, `npm run build:server`, `npm run test:db`.
 Voir `tests/integration/README.md` pour la base PostgreSQL jetable et les scénarios.
-Les parties publiques, Quick Play, Ranked, OpenSkill et la conversion invité vers
-compte sont réservés aux phases suivantes.
+Quick Play, Ranked, OpenSkill et la conversion invité vers compte sont réservés aux phases suivantes.
+
+## V2 — Parties publiques Casual
+
+Appliquer `supabase/migrations/030_public_casual.sql` après les migrations 028 et 029. Les comptes et invités peuvent créer et rejoindre des salons publics depuis la page de découverte. Les comptes gagnent XP et succès selon les règles Casual ; les invités conservent leurs limites actuelles. Aucun rating classé n’est appliqué. La liste affiche les salons dont l’hôte est connecté et se rafraîchit toutes les dix secondes.

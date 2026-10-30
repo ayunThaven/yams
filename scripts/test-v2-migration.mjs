@@ -21,6 +21,8 @@ if (!['postgres:', 'postgresql:'].includes(parsed.protocol)
 const files = {
   fixture: resolve('tests/sql/v2_fixture.sql'),
   guestMigration: resolve('supabase/migrations/029_guest_mode.sql'),
+  publicMigration: resolve('supabase/migrations/030_public_casual.sql'),
+  publicAssertions: resolve('tests/sql/public_assertions.sql'),
   guestAssertions: resolve('tests/sql/guest_assertions.sql'),
   migration: resolve('supabase/migrations/028_v2_foundations.sql'),
   assertions: resolve('tests/sql/v2_assertions.sql'),
@@ -108,6 +110,9 @@ try {
     runFile(files.guestMigration, oldAuthFk)
     runFile(files.guestMigration, oldAuthFk)
     runFile(files.guestAssertions, oldAuthFk)
+    runFile(files.publicMigration, oldAuthFk)
+    runFile(files.publicMigration, oldAuthFk)
+    runFile(files.publicAssertions, oldAuthFk)
     runFile(files.concurrentSetup, oldAuthFk)
     await runConcurrentFinalization()
     runFile(files.concurrentAssertions, oldAuthFk)

@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSupabase } from '@/components/Providers'
-import CreateGame from '@/components/CreateGame'
-import JoinGame from '@/components/JoinGame'
+import { CreateLobbyCard, JoinLobbyCard } from '@/components/LobbyCards'
 
 export default function PlayPage() {
   const { session, isLoading, refreshUserProfile } = useSupabase()
@@ -84,8 +83,8 @@ export default function PlayPage() {
         {session.kind === 'GUEST' ? <><p>Vous jouez en tant que <strong>{session.nickname}</strong>.</p><button className="club-button club-button-secondary" onClick={leaveSession} disabled={busy}>Changer de pseudo</button></> : <><label htmlFor="guest-nickname">Votre pseudo</label><input id="guest-nickname" className={`input input-bordered ${nicknameInvalid ? 'is-invalid' : nicknameValid ? 'is-valid' : ''}`} aria-invalid={nicknameInvalid} value={nickname} disabled={busy} onChange={event => setNickname(event.target.value)} autoComplete="nickname" placeholder="Choisissez un pseudo" aria-describedby="guest-nickname-help"/><small id="guest-nickname-help" role="status" aria-live="polite" className={nicknameInvalid ? 'is-error' : nicknameValid ? 'is-success' : undefined}>{nicknameCheck?.value === nickname ? nicknameCheck.message : '1 à 32 caractères.'}</small></>}
       </div>
       <div className="club-guest-options">
-        <section className="club-panel club-start-card club-create-card"><div><p className="club-eyebrow">Nouvelle partie</p><h2>Créer une partie</h2></div><CreateGame beforeCreate={ensureSession} disabled={busy || (session.kind === 'NONE' && !nicknameValid)}/></section>
-        <section className="club-panel club-start-card club-join-card"><div><p className="club-eyebrow">Invitation</p><h2>Rejoindre une partie</h2></div><JoinGame key={pendingJoin || 'no-invitation'} initialCode={pendingJoin || ''} beforeJoin={ensureSession} disabled={busy || (session.kind === 'NONE' && !nicknameValid)}/></section>
+        <CreateLobbyCard beforeAction={ensureSession} disabled={busy || (session.kind === 'NONE' && !nicknameValid)}/>
+        <JoinLobbyCard key={pendingJoin || 'no-invitation'} initialCode={pendingJoin || ''} beforeAction={ensureSession} disabled={busy || (session.kind === 'NONE' && !nicknameValid)}/>
       </div>
       <p className="club-guest-note">Sans inscription</p>
     </div>}

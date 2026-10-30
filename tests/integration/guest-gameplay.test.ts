@@ -26,6 +26,7 @@ function harness(roomId: string, owner: PlayerIdentity, variant: GameVariant = '
   const achievements: string[] = []
   const updatedUsers = new Set<string>()
   const snapshots = new Map<string, { state: unknown; version: number }>()
+  const broadcasts: string[] = []
   const game = { id: roomId, status: 'waiting', owner: owner.userId ?? null, guest_owner_session_id: owner.guestSessionId ?? null, variant, max_players: maxPlayers, visibility: 'PRIVATE', match_type: 'CASUAL' }
   const supabase = {
     from(table: string) {
@@ -83,6 +84,7 @@ function harness(roomId: string, owner: PlayerIdentity, variant: GameVariant = '
   } as unknown as SupabaseClient
   const io = {
     sockets: { adapter: { rooms }, sockets },
+    emit: (event: string) => { broadcasts.push(event) },
     to: () => ({ emit: () => undefined }),
   } as unknown as Server
   function makeSocket(id: string, identity: PlayerIdentity, name: string) {
@@ -103,10 +105,27 @@ function harness(roomId: string, owner: PlayerIdentity, variant: GameVariant = '
     setupDisconnectHandlers(io, asSocket, roomStates, supabase)
     return { ...socket, asSocket, events, send: async (event: string, value?: unknown) => { await handlers.get(event)?.(value); await settle() } }
   }
-  return { game, players, results, scores, achievements, updatedUsers, supabase, roomStates,
+  return { game, players, results, scores, achievements, updatedUsers, supabase, roomStates, broadcasts,
     socket(id: string, identity: PlayerIdentity, name: string) { const socket = makeSocket(id, identity, name); sockets.set(id, socket); return socket },
   }
 }
+
+test('lobby changes notify public game lists after joins, capacity changes and disconnects', async t => {
+  const owner: PlayerIdentity = { kind: 'GUEST', guestSessionId: 'notify-host' }
+  const h = harness('RSTUVWXY', owner, 'classic', 3)
+  h.game.visibility = 'PUBLIC'
+  t.after(clearAllGames)
+  const host = h.socket('notify-host-socket', owner, 'Host')
+  const guest = h.socket('notify-guest-socket', { kind: 'GUEST', guestSessionId: 'notify-guest' }, 'Guest')
+  await host.send('join_room', h.game.id)
+  await guest.send('join_room', h.game.id)
+  await host.send('update_max_players', { roomId: h.game.id, maxPlayers: 2 })
+  assert.equal(h.broadcasts.filter(event => event === 'public_games_changed').length, 3)
+  await guest.send('disconnecting')
+  await guest.leave(h.game.id)
+  await guest.send('disconnect')
+  assert.equal(h.broadcasts.filter(event => event === 'public_games_changed').length, 4)
+})
 
 for (const [index, kinds] of [ ['USER', 'USER', 'GUEST'], ['GUEST', 'USER', 'GUEST'], ['GUEST', 'GUEST', 'GUEST'], ['USER', 'GUEST', 'USER', 'GUEST'] ].entries()) {
   test(`complete Casual game, reconnect and results: ${kinds.join(' + ')}`, async t => {
@@ -114,6 +133,7 @@ for (const [index, kinds] of [ ['USER', 'USER', 'GUEST'], ['GUEST', 'USER', 'GUE
     const identities: PlayerIdentity[] = kinds.map((kind, i) => kind === 'USER' ? { kind, userId: `user-${index}-${i}` } : { kind: 'GUEST', guestSessionId: `guest-${index}-${i}` })
     const roomId = ['ABCDEFGH', 'BCDEFGHJ', 'CDEFGHJK', 'DEFGHJKL'][index]
     const h = harness(roomId, identities[0], (['classic', 'descending', 'ascending', 'classic'] as const)[index])
+    h.game.visibility = 'PUBLIC'
     const sockets = identities.map((identity, i) => h.socket(`socket-${index}-${i}`, identity, `Joueur ${i}`))
     t.after(() => { clearAllGames(); t.mock.timers.reset() })
     for (const socket of sockets) await socket.send('join_room', roomId)
@@ -187,6 +207,21 @@ test('room capacity, duplicate names and same guest waiting-room rejoin', async 
   await reconnected.send('join_room', h.game.id)
   assert.ok(reconnected.rooms.has(h.game.id))
   assert.equal(h.players.size, 2)
+})
+
+test('concurrent public lobby joins cannot overfill the final seat', async t => {
+  const owner: PlayerIdentity = { kind: 'USER', userId: 'public-host' }
+  const h = harness('JKLMNPQR', owner, 'classic', 2)
+  h.game.visibility = 'PUBLIC'
+  t.after(clearAllGames)
+  const host = h.socket('public-host-socket', owner, 'Host')
+  const first = h.socket('public-first', { kind: 'GUEST', guestSessionId: 'first' }, 'First')
+  const second = h.socket('public-second', { kind: 'USER', userId: 'second' }, 'Second')
+  await host.send('join_room', h.game.id)
+  await Promise.all([first.send('join_room', h.game.id), second.send('join_room', h.game.id)])
+  await settle(); await settle()
+  assert.equal([first, second].filter(socket => socket.rooms.has(h.game.id)).length, 1)
+  assert.equal([first, second].filter(socket => socket.events.some(event => event.name === 'error')).length, 1)
 })
 
 test('guest grace timeout persists abandon with zero XP', async t => {
