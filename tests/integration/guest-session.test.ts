@@ -125,14 +125,14 @@ test('guest API, HTTP and socket identity security', async t => {
     assert.equal(verifyJwtToken(cookie.split('=')[1]), null)
     assert.equal((await POST(request('POST', { nickname: 'Guest' }, `yams_auth_token=${userToken}`))).status, 409)
   })
-  await t.test('guest and user games impose PRIVATE/CASUAL and achievements only USER', async () => {
+  await t.test('guest and user games support PUBLIC/CASUAL and achievements only USER', async () => {
     for (const auth of [cookie, `yams_auth_token=${userToken}`]) {
       const response = await createGame(request('POST', { variant: 'classic', visibility: 'PUBLIC', match_type: 'RANKED' }, auth, '/api/games'))
       assert.equal(response.status, 201)
       const row = games.at(-1)!
-      assert.equal(row.visibility, 'PRIVATE'); assert.equal(row.match_type, 'CASUAL')
+      assert.equal(row.visibility, 'PUBLIC'); assert.equal(row.match_type, 'CASUAL')
       if (auth === cookie) { assert.equal(row.owner, null); assert.equal(row.guest_owner_session_id, id); assert.equal(achievementUsers.length, 0) }
-      else { assert.equal(row.owner, jwt.decode(userToken).id); assert.equal(row.guest_owner_session_id, null); assert.equal(achievementUsers.length, 2) }
+      else { assert.equal(row.owner, jwt.decode(userToken).id); assert.equal(row.guest_owner_session_id, null); assert.equal(achievementUsers.length, 1) }
     }
     assert.equal((await createGame(request('POST', { variant: 'bad' }, cookie, '/api/games'))).status, 400)
   })

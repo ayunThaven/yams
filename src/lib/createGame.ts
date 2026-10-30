@@ -4,12 +4,12 @@ import { GameVariant } from '@/types/game'
 import { Achievement } from '@/types/achievement'
 
 export async function createGame(
-  variant: GameVariant
+  variant: GameVariant, visibility: 'PRIVATE' | 'PUBLIC' = 'PRIVATE'
 ): Promise<{ id: string; error: string | null; achievements: Achievement[] }> {
   const id = generateGameId()
   const { data, error } = await api.post<{
     game: { id: string }
     achievements?: Achievement[]
-  }>('/api/games', { id, variant })
+  }>('/api/games', { id, variant, visibility })
   return { id, error, achievements: data?.achievements ?? [] }
 }

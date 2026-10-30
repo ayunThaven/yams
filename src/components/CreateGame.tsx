@@ -8,7 +8,7 @@ import { useFlashMessage } from '@/contexts/FlashMessageContext'
 import { createGame } from '@/lib/createGame'
 import { GameVariant } from '@/types/game'
 import { VARIANT_DESCRIPTIONS, VARIANT_NAMES } from '@/lib/variantLogic'
-import { ChevronDownIcon, CloseIcon, PlusCircleIcon } from './icons/ClubIcons'
+import { ChevronDownIcon, CloseIcon } from './icons/ClubIcons'
 
 const variants: GameVariant[] = ['classic', 'descending', 'ascending']
 
@@ -16,32 +16,32 @@ export default function CreateGame({ beforeCreate, disabled = false }: { beforeC
   const router = useRouter()
   const { isAnonymous } = useSupabase()
   const { showAchievement } = useFlashMessage()
-  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [variantSheetOpen, setVariantSheetOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [visibility, setVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE')
   const [selected, setSelected] = useState<GameVariant>('classic')
   const [error, setError] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
   const [compactPickerOpen, setCompactPickerOpen] = useState(false)
 
   useEffect(() => setMounted(true), [])
-
   useEffect(() => {
-    if (!open) return
-
+    if (!variantSheetOpen) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previousOverflow }
-  }, [open])
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setVariantSheetOpen(false) }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKeyDown) }
+  }, [variantSheetOpen])
 
   async function create() {
     if (isAnonymous && !beforeCreate) return router.push('/play')
     setLoading(true); setError(null)
     try {
       await beforeCreate?.()
-      const result = await createGame(selected)
+      const result = await createGame(selected, visibility)
       if (result.error) { setError(result.error); setLoading(false); return }
       result.achievements.forEach(showAchievement)
-      setOpen(false)
       router.push(`/game/${result.id}`)
     } catch (err) { setError(err instanceof Error ? err.message : 'La partie n’a pas pu être créée. Réessayez.'); setLoading(false) }
   }
@@ -52,22 +52,22 @@ export default function CreateGame({ beforeCreate, disabled = false }: { beforeC
     <strong>{VARIANT_NAMES[variant]}</strong>
   </label>)
 
-  const dialog = open && <div className="club-dialog-layer" role="presentation" onMouseDown={() => !loading && setOpen(false)}>
-      <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="variant-title" onMouseDown={e => e.stopPropagation()}>
-        <header><div><p className="club-eyebrow">Nouvelle partie</p><h2 id="variant-title">Choisissez un mode de jeu</h2></div><button className="club-icon-button" onClick={() => setOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
-        {error && <p className="club-form-error" role="alert">{error}</p>}
-        <div className="club-variant-list">{variants.map((variant, index) => <label key={variant} className={`club-variant-option ${selected === variant ? 'is-selected' : ''}`}>
-          <input type="radio" name="variant" value={variant} checked={selected === variant} onChange={() => setSelected(variant)}/>
-          <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i/>
-        </label>)}</div>
-        <footer><button className="club-button club-button-secondary" onClick={() => setOpen(false)} disabled={loading}>Annuler</button><button className="club-button club-button-primary" onClick={create} disabled={loading || disabled}>{loading ? 'Création…' : 'Créer la partie'}</button></footer>
-      </section>
+  const visibilityChoice = (name: string) => <fieldset className="club-visibility">
+    <legend className="club-eyebrow">Qui peut rejoindre ?</legend>
+    <div className="club-visibility-options">
+      {([{ value: 'PRIVATE', title: 'Privée', detail: 'Avec un code' }, { value: 'PUBLIC', title: 'Publique', detail: 'Visible par tous' }] as const).map(option => <label key={option.value} className={`club-visibility-option ${visibility === option.value ? 'is-selected' : ''}`}>
+        <input type="radio" name={name} value={option.value} checked={visibility === option.value} onChange={() => setVisibility(option.value)}/>
+        <span><strong>{option.title}</strong><small>{option.detail}</small></span><i aria-hidden="true"/>
+      </label>)}
     </div>
+  </fieldset>
 
   return <>
-    <button className="club-button club-button-primary club-create-trigger" disabled={disabled} onClick={() => !isAnonymous || beforeCreate ? setOpen(true) : router.push('/play')}><PlusCircleIcon className="h-5 w-5"/>Choisir la variante</button>
     <div className="club-create-inline">
       <p className="club-eyebrow">Choisissez un mode de jeu</p>
+      <button type="button" className="club-compact-select club-mobile-variant-trigger" onClick={() => setVariantSheetOpen(true)} aria-haspopup="dialog" aria-expanded={variantSheetOpen}>
+        <span><small>Variante</small><strong>{VARIANT_NAMES[selected]}</strong></span><ChevronDownIcon/>
+      </button>
       <div className="club-compact-variants" data-variant-count={variants.length} data-variant-layout={variants.length > 4 ? 'picker' : undefined} role="radiogroup" aria-label="Choisissez la variante">{compactVariantOptions}</div>
       <div className={`club-compact-picker ${compactPickerOpen ? 'is-open' : ''}`}>
         <button type="button" className="club-compact-select" aria-expanded={compactPickerOpen} aria-haspopup="listbox" aria-controls="compact-variant-list" onClick={() => setCompactPickerOpen(value => !value)}>
@@ -79,9 +79,18 @@ export default function CreateGame({ beforeCreate, disabled = false }: { beforeC
           </button>)}
         </div>}
       </div>
+      {visibilityChoice('inline-visibility')}
       {error && <p className="club-form-error" role="alert">{error}</p>}
       <button className="club-button club-button-primary" onClick={create} disabled={loading || disabled}>{loading ? 'Création…' : 'Créer la partie'}</button>
     </div>
-    {mounted && dialog ? createPortal(dialog, document.body) : null}
+    {mounted && variantSheetOpen && createPortal(<div className="club-dialog-layer" onMouseDown={() => setVariantSheetOpen(false)}>
+      <section className="club-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-variant-title" onMouseDown={event => event.stopPropagation()}>
+        <header><div><p className="club-eyebrow">Nouvelle partie</p><h2 id="mobile-variant-title">Choisissez une variante</h2></div><button type="button" className="club-icon-button" onClick={() => setVariantSheetOpen(false)} aria-label="Fermer"><CloseIcon/></button></header>
+        <div className="club-variant-list">{variants.map((variant, index) => <label key={variant} className={`club-variant-option ${selected === variant ? 'is-selected' : ''}`}>
+          <input type="radio" name="mobile-variant" value={variant} checked={selected === variant} onChange={() => { setSelected(variant); setVariantSheetOpen(false) }}/>
+          <span className="club-variant-number">0{index + 1}</span><span><strong>{VARIANT_NAMES[variant]}</strong><small>{VARIANT_DESCRIPTIONS[variant]}</small></span><i/>
+        </label>)}</div>
+      </section>
+    </div>, document.body)}
   </>
 }

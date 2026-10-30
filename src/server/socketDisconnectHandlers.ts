@@ -46,6 +46,7 @@ export function setupDisconnectHandlers(
   roomStates: Map<string, { started: boolean }>,
   supabase: SupabaseClient
 ) {
+  let leftWaitingRoom = false
   // Utiliser 'disconnecting' au lieu de 'disconnect' pour avoir accès aux rooms
   socket.on('disconnecting', () => {
     const playerName = socket.data.playerName || 'Un joueur'
@@ -121,6 +122,7 @@ export function setupDisconnectHandlers(
             disconnectTimers.set(timerKey, abandonTimer)
           }
         } else {
+          leftWaitingRoom = true
           // Salle d'attente : simple notification
           // Envoyer le message AVANT de récupérer la nouvelle liste
           io.to(roomId).emit('system_message', `${playerName} s'est déconnecté`)
@@ -144,6 +146,9 @@ export function setupDisconnectHandlers(
         }
       }
     })
+  })
+  socket.on('disconnect', () => {
+    if (leftWaitingRoom) io.emit('public_games_changed')
   })
 }
 

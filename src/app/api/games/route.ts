@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { variant, id: providedId } = body as {
+    const { variant, id: providedId, visibility = 'PRIVATE' } = body as {
       variant?: string
       id?: string
+      visibility?: string
     }
 
     if (!variant || !VARIANTS.has(variant)) {
@@ -33,6 +34,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    if (visibility !== 'PRIVATE' && visibility !== 'PUBLIC') return NextResponse.json({ error: 'Visibilité invalide.' }, { status: 400 })
 
     if (providedId && !GAME_ID.test(providedId)) {
       return NextResponse.json({ error: 'Identifiant de partie invalide.' }, { status: 400 })
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
           status: 'waiting',
           owner: identity.kind === 'USER' ? identity.userId : null,
           guest_owner_session_id: identity.kind === 'GUEST' ? identity.guestSessionId : null,
-          visibility: 'PRIVATE',
+          visibility,
           match_type: 'CASUAL',
           variant,
           created_at: new Date().toISOString(),
@@ -73,15 +76,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // All current games are private and can only be joined with their code.
+    // The private-game achievement applies only to private tables.
     if (identity.kind === 'USER') await Promise.all([
       unlockActionAchievement(supabase, identity.userId, 'create_game'),
-      unlockActionAchievement(supabase, identity.userId, 'create_private_game'),
+      ...(visibility === 'PRIVATE' ? [unlockActionAchievement(supabase, identity.userId, 'create_private_game')] : []),
     ])
     trackEvent('game_created', {
       gameId: id,
       variant: variant as GameVariant,
-      visibility: 'PRIVATE',
+      visibility,
       matchType: 'CASUAL',
     })
 

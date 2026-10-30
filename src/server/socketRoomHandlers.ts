@@ -7,6 +7,7 @@ import { getIdentityKey, getPlayerIdentity, isGameOwner } from '@/lib/playerIden
 import { getSocketPlayerIdentity, ensureGamePlayer } from './playerIdentity'
 import { canPlayMatchType } from './ratingService'
 import { trackEvent } from '@/lib/analytics'
+import { sortPublicGames } from './publicGames'
 import { Server, Socket } from 'socket.io'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { getGameState, initializeGame } from './gameManager'
@@ -76,9 +77,24 @@ export function setupRoomHandlers(
   roomStates: Map<string, RoomState>,
   supabase: SupabaseClient
 ) {
-  /**
-   * Lance réellement la partie après le compte à rebours
-   */
+  socket.on('list_public_games', async (reply: (result: { games?: { id: string; host: string; avatar?: string; players: number; maxPlayers: number; variant: string; createdAt: string }[]; error?: string }) => void) => {
+    if (typeof reply !== 'function') return
+    try {
+      const { data, error } = await supabase.from('games').select('id, variant, max_players, created_at').eq('visibility', 'PUBLIC').eq('match_type', 'CASUAL').eq('status', 'waiting').order('created_at')
+      if (error) throw error
+      const games = sortPublicGames((data || []).flatMap(game => {
+        if (roomStates.get(game.id)?.started) return []
+        const players = getPlayersInRoom(io, game.id)
+        const host = players.find(player => player.isHost)
+        const count = new Set(players.flatMap(player => { const identity = getPlayerIdentity(player); return identity ? [getIdentityKey(identity)] : [] })).size
+        if (!host || count >= game.max_players) return []
+        return [{ id: game.id, host: host.name, avatar: host.avatar, players: count, maxPlayers: game.max_players, variant: game.variant, createdAt: game.created_at }]
+      }))
+      reply({ games })
+    } catch { reply({ error: 'Impossible de charger les parties publiques.' }) }
+  })
+
+  /** Lance la partie après le compte à rebours. */
   async function startGame(roomId: string) {
     // Éviter les doubles démarrages
     const existingState = roomStates.get(roomId)
@@ -88,6 +104,7 @@ export function setupRoomHandlers(
 
     // Marquer que la partie a démarré
     roomStates.set(roomId, { started: true })
+    io.emit('public_games_changed')
 
     // Récupérer les joueurs
     const players = getPlayersInRoom(io, roomId)
@@ -234,8 +251,8 @@ export function setupRoomHandlers(
 
     try {
       const { data: game, error } = await supabase.from('games').select('owner, guest_owner_session_id, match_type, visibility').eq('id', roomId).single()
-      if (error || !game || !canPlayMatchType(identity, game.match_type) || game.match_type !== 'CASUAL' || game.visibility !== 'PRIVATE') {
-        socket.emit('error', { message: 'Cette partie privée Casual est inaccessible.' })
+      if (error || !game || !canPlayMatchType(identity, game.match_type) || game.match_type !== 'CASUAL' || !['PRIVATE', 'PUBLIC'].includes(game.visibility)) {
+        socket.emit('error', { message: 'Cette partie Casual est inaccessible.' })
         return
       }
       const others = getPlayersInRoom(io, roomId)
@@ -264,6 +281,7 @@ export function setupRoomHandlers(
       }
     }
     await socket.join(roomId)
+    io.emit('public_games_changed')
     trackEvent('game_joined', { gameId: roomId, playerKind: identity.kind })
 
     // The owner created the game; only another participant is joining it.
@@ -379,6 +397,7 @@ export function setupRoomHandlers(
 
       // Notifier tous les joueurs de la room
       io.to(roomId).emit('max_players_updated', { maxPlayers })
+      io.emit('public_games_changed')
       io.to(roomId).emit('system_message', `Le nombre maximum de joueurs a été modifié à ${maxPlayers}.`)
     } catch (err) {
       console.error('[ROOM] Exception update_max_players:', err)
@@ -509,6 +528,7 @@ export function setupRoomHandlers(
       try { await startGame(roomId) } catch (error) {
         console.error('[ROOM] Start failed:', error)
         roomStates.delete(roomId)
+        io.emit('public_games_changed')
         io.to(roomId).emit('error', { message: 'Impossible de démarrer la partie.' })
       }
     }, 1000)
@@ -519,7 +539,7 @@ export function setupRoomHandlers(
   /**
    * Quitter une room (avant que la partie démarre)
    */
-  socket.on('leave_room', (roomId: string) => {
+  socket.on('leave_room', async (roomId: string) => {
     if (!isValidRoomId(roomId)) {
       socket.emit('error', { message: 'Identifiant de partie invalide.' })
       return
@@ -538,7 +558,8 @@ export function setupRoomHandlers(
     if (socket.data.memberships) delete socket.data.memberships[roomId]
 
     // Quitter la room
-    socket.leave(roomId)
+    await socket.leave(roomId)
+    io.emit('public_games_changed')
 
     // Récupérer les joueurs restants
     const players = getPlayersInRoom(io, roomId)
